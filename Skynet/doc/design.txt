@@ -1,0 +1,50 @@
+﻿底层架构设计
+每个节点不仅要向外发请求还要响应别人的请求。响应的时间可能会比较长。所以要做成异步的模式。
+所有的请求和响应都是通过tox网络发出去的，这个和http请求还不太一样。所以要加一些东西来区分出每个请求对应的每个响应。
+还要考虑消息有长度限制，底层要自动的实现分包
+
+request
+{
+	url: the target resource
+	method: get, post, update, delete, etc
+	uuid: the uuid of the request
+	from: from toxid,
+	to: to toxid,
+	content: msg content
+}
+
+分包
+
+{
+	id: uuid
+	type: start, content, end
+	content: package content
+}
+
+遇到 type == start, 在包Cache里面新加一个
+
+
+2015年8月22日09:17:11
+非常好第一次通信成功
+
+
+Requset
+
+from 
+
+node uuid
+toxid
+request uuid
+
+一个tox client 可以有多个node， 每个node都有唯一的一个id。client是属于底层的结构不对上层的app层开放。
+app层至多能看到node层
+
+request url的结构定义
+
+底层 tox client 层， 比如handshake，貌似没必要吧
+url: tox/[actions]
+
+node层， 比如添加父级节点
+url: node/[data entities]
+	风格上和 restful api 一致， 比如添加父级节点实际上就是 post 到 node/childNodes。也就是在对方的子节点
+	加上自己的记录
