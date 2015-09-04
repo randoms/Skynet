@@ -17,7 +17,7 @@ namespace Skynet.Models
         public string toNodeId { get; set; }
         public string toToxId { get; set; }
 
-        public Response createResponse()
+        public Response createResponse(string content = "")
         {
             return new Response
             {
@@ -26,7 +26,8 @@ namespace Skynet.Models
                 fromNodeId = this.toNodeId,
                 fromToxId = this.toToxId,
                 toToxId = this.fromToxId,
-                toNodeId = this.toNodeId
+                toNodeId = this.toNodeId,
+                content = content,
             };
         }
     }

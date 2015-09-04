@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using SharpTox.Core;
+using Skynet.Base.Contollers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +11,7 @@ namespace Skynet.Models
 {
     class Node
     {
+        public static List<Node> AllLocalNodes = new List<Node>();
         public Base.Skynet mSkynet { get; set; }
 
         public string uuid { get; set; }
@@ -18,7 +20,7 @@ namespace Skynet.Models
         public NodeId selfNode { get; set; }
         public List<NodeId> childNodes { get; set; }
         public List<NodeId> brotherNodes { get; set; }
-        public bool nodeChangeLock { get; set; }
+        public NodeLock nodeChangeLock { get; set; }
         public DateTime startTime { get; set; }
         public int diskFreeSpace { get; set; } // unit MB
         public int bandWidth { get; set; } // unit KB
@@ -34,10 +36,11 @@ namespace Skynet.Models
                 uuid = Guid.NewGuid().ToString(),
                 toxid = skynet.tox.Id.ToString()
             };
-            Task.Factory.StartNew(async() =>
+            Task.Factory.StartNew(async () =>
             {
                 await joinNetByTargetParents(bootStrapParents); // if successed parent will be set, and isConnected will set to true
             });
+            AllLocalNodes.Add(this);
         }
 
         /// <summary>
@@ -55,14 +58,6 @@ namespace Skynet.Models
         /// change position with target node
         /// </summary>
         public void changePostion()
-        {
-
-        }
-
-        /// <summary>
-        /// set new parent node when parent if offline
-        /// </summary>
-        public void setNewParents()
         {
 
         }
@@ -92,7 +87,7 @@ namespace Skynet.Models
             List<NodeId> checkedNodesList = new List<NodeId>();
             NodeId target = null;
 
-            while(targetNodeList.Count > 0 && target == null)
+            while (targetNodeList.Count > 0 && target == null)
             {
                 NodeId parentNode = targetNodeList[0];
                 Request addParentReq = new Request
@@ -114,34 +109,37 @@ namespace Skynet.Models
                     targetNodeList.Remove(parentNode);
                     continue;
                 }
-                AddParentResponse addParentResponse = JsonConvert.DeserializeObject<AddParentResponse>(mRes.content);
-                switch (addParentResponse.status)
+                NodeResponse addParentResponse = JsonConvert.DeserializeObject<NodeResponse>(mRes.content);
+                switch (addParentResponse.statusCode)
                 {
-                    case JoinSkynetResponseStatus.Locked:
+                    case NodeResponseCode.TargetLocked:
                         targetNodeList.Remove(parentNode);
-                        if(!checkedNodesList.Contains<NodeId>(parentNode))
+                        if (!checkedNodesList.Contains<NodeId>(parentNode))
                             checkedNodesList.Add(parentNode);
                         continue;
-                    case JoinSkynetResponseStatus.Redirected:
+                    case NodeResponseCode.TargetIsFull:
                         targetNodeList.Remove(parentNode);
                         if (!checkedNodesList.Contains<NodeId>(parentNode))
                             checkedNodesList.Add(parentNode);
                         // new nodes, not checked yet
-                        List<NodeId> newTargetsList = addParentResponse.parents.Where((mnode)=> {
+                        List<NodeId> newTargetsList = JsonConvert.DeserializeObject<List<NodeId>>(addParentResponse.value).Where((mnode) => {
                             return !checkedNodesList.Contains<NodeId>(mnode);
                         }).ToList();
                         targetNodeList.Concat(newTargetsList);
                         continue;
-                    case JoinSkynetResponseStatus.OK:
+                    case NodeResponseCode.OK:
                         // set parent and connect status
-                        target = addParentResponse.parents[0];
+                        target = new NodeId {
+                            toxid = mRes.fromToxId,
+                            uuid = mRes.fromNodeId
+                        };
                         isConnected = true;
                         break;
                 }
 
             }
 
-            if(target != null)
+            if (target != null)
             {
                 isConnected = true;
                 parent = target;
@@ -153,41 +151,82 @@ namespace Skynet.Models
             }
         }
 
-        /// <summary>
-        /// other nodes want to 
-        /// </summary>
-        /// <returns>
-        /// other node want to join net by setting this node as parent
-        /// </returns>
-        public Response onAddParentReq(NodeId node, Request req)
-        {
-            Response mRes = req.createResponse();
-            if (this.nodeChangeLock)
-            {
-                // current node is locked, not allowed to change right now
-                mRes.content = JsonConvert.SerializeObject(new AddParentResponse
-                {
-                    status = JoinSkynetResponseStatus.Locked
+        public void relatedNodesStatusChanged(NodeId targetNode) {
+            if (targetNode == nodeChangeLock.from)
+                nodeChangeLock.isLocked = false;
+            // child nodes offline
+            NodeId childNodeToRemove = childNodes.Where(x => x.uuid == targetNode.uuid).DefaultIfEmpty(null).FirstOrDefault();
+            if (childNodeToRemove != null) {
+                childNodes.Remove(targetNode);
+                childNodes.ForEach(remindingNodes => {
+                    bool status = false;
+                    // send request to reminding nodes
+                    mSkynet.sendRequest(new ToxId(remindingNodes.toxid), new Request
+                    {
+                        url = "node/" + remindingNodes.uuid + "/brotherNodes/" + childNodeToRemove.uuid,
+                        method = "delete",
+                        uuid = Guid.NewGuid().ToString(),
+                        content = "",
+                        fromNodeId = selfNode.uuid,
+                        fromToxId = selfNode.toxid,
+                        toNodeId = remindingNodes.toxid,
+                        toToxId = remindingNodes.toxid
+                    }, out status);
                 });
-                return mRes;
+                // remove nodes from friends
+                
             }
-            if(childNodes.Count >= MAX_CHILD_NODES_NUM)
+            // parent node offline
+            if(targetNode.uuid == parent.uuid)
             {
-                // currnet child list is full, redirect req to child nodes
-                mRes.content = JsonConvert.SerializeObject(new AddParentResponse
+                Task.Run(async () =>
                 {
-                    status = JoinSkynetResponseStatus.Redirected,
-                    parents = childNodes
+                    await joinNetByTargetParents(brotherNodes);
+                    // send new grand parents to child nodes
+                    childNodes.ForEach(child =>
+                    {
+                        bool status = false;
+                        // send request to reminding nodes
+                        mSkynet.sendRequest(new ToxId(child.toxid), new Request
+                        {
+                            url = "node/" + child.uuid + "/grandParents",
+                            method = "put",
+                            uuid = Guid.NewGuid().ToString(),
+                            content = JsonConvert.SerializeObject(parent),
+                            fromNodeId = selfNode.uuid,
+                            fromToxId = selfNode.toxid,
+                            toNodeId = child.toxid,
+                            toToxId = child.toxid
+                        }, out status);
+                    });
                 });
-                return mRes;
             }
-            childNodes.Add(JsonConvert.DeserializeObject<NodeId>(req.content));
-            mRes.content = JsonConvert.SerializeObject(new AddParentResponse
+            // brother nodes offline just delete friend record
+            if (brotherNodes.IndexOf(targetNode) != -1) {
+                brotherNodes.Remove(targetNode);
+            }
+            // grandparent node offline just delete friend record
+            ToxErrorFriendDelete mError = ToxErrorFriendDelete.Ok;
+            int targetFriendNum = mSkynet.tox.GetFriendByPublicKey(new ToxId(childNodeToRemove.toxid).PublicKey);
+            mSkynet.tox.DeleteFriend(targetFriendNum, out mError);
+        }
+
+        public NodeInfo getInfo() {
+            return new NodeInfo
             {
-                status = JoinSkynetResponseStatus.OK,
-                parents = new List<NodeId> {selfNode}
-            });
-            return mRes;
+                uuid = uuid,
+                parent = parent,
+                grandParents = grandParents,
+                selfNode = selfNode,
+                childNodes = childNodes,
+                brotherNodes = brotherNodes,
+                nodeChangeLock = nodeChangeLock,
+                startTime = startTime,
+                diskFreeSpace = diskFreeSpace,
+                bandWidth = bandWidth,
+                MAX_CHILD_NODES_NUM = MAX_CHILD_NODES_NUM,
+                isConnected = isConnected,
+            };
         }
     }
 
@@ -200,18 +239,30 @@ namespace Skynet.Models
         {
             return uuid == other.uuid && toxid == other.toxid;       
         }
+
+        override
+        public string ToString() {
+            return uuid;
+        }
     }
 
-    enum JoinSkynetResponseStatus
-    {
-        Locked,
-        Redirected,
-        OK
+    class NodeInfo {
+        public string uuid { get; set; }
+        public NodeId parent { get; set; }
+        public NodeId grandParents { get; set; }
+        public NodeId selfNode { get; set; }
+        public List<NodeId> childNodes { get; set; }
+        public List<NodeId> brotherNodes { get; set; }
+        public NodeLock nodeChangeLock { get; set; }
+        public DateTime startTime { get; set; }
+        public int diskFreeSpace { get; set; } // unit MB
+        public int bandWidth { get; set; } // unit KB
+        public int MAX_CHILD_NODES_NUM = 10;
+        public bool isConnected = false; // is the node is connected to its net
     }
 
-    class AddParentResponse
-    {
-        public JoinSkynetResponseStatus status { get; set; }
-        public List<NodeId> parents { get; set; }
+    class NodeLock {
+        public bool isLocked;
+        public NodeId from;
     }
 }

@@ -75,6 +75,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Base\Connect.cs" />
+    <Compile Include="Base\Contollers\NodeController.cs" />
     <Compile Include="Base\Router.cs" />
     <Compile Include="Base\Skynet.cs" />
     <Compile Include="Models\Node.cs" />
@@ -87,6 +88,7 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+    <None Include="Resources\strings.json" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\SharpTox-master\SharpTox\SharpTox.csproj">
@@ -94,9 +96,7 @@
       <Name>SharpTox</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Base\Contollers\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <Content Include="doc\design.txt" />
   </ItemGroup>

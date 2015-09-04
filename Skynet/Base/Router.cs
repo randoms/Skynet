@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Skynet.Base
@@ -26,7 +27,18 @@ namespace Skynet.Base
 
         public async Task<Response> route(Request req)
         {
-            return await mMapping[req.url](req);
+            Func<Request, Task<Response>> mRes = new Func<Request, Task<Response>>((Request mreq) =>
+            {
+                return Task.Factory.StartNew(() =>
+                {
+                    return mreq.createResponse();
+                });
+            });
+            mMapping.Keys.ToList().ForEach(key => {
+                if (new Regex(key).IsMatch(req.url))
+                    mRes = mMapping[key];
+            });
+            return await mRes(req);
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using SharpTox.Core;
+using Skynet.Base.Contollers;
 using Skynet.Models;
 using System;
 using System.Collections.Generic;
@@ -24,7 +25,7 @@ namespace Skynet.Base
         {
             // set router
             this.mRouter = new Router(this);
-            mRouter.Add("/handshake", (Request req)=> {
+            mRouter.Add("^/handshake/?$", (Request req)=> {
                 return Task.Factory.StartNew(() =>
                 {
                     return new Response() {
@@ -35,11 +36,14 @@ namespace Skynet.Base
                 });
             });
 
+            mRouter.Add("^/node", NodeController.DataControl);
+
             // init tox client
             ToxOptions options = new ToxOptions(true, true);
             tox = new Tox(options);
             tox.OnFriendRequestReceived += tox_OnFriendRequestReceived;
             tox.OnFriendMessageReceived += tox_OnFriendMessageReceived;
+            tox.OnFriendConnectionStatusChanged += tox_OnFriendConnectionStatusChanged;
 
             foreach (ToxNode node in Nodes)
                 tox.Bootstrap(node);
@@ -97,6 +101,20 @@ namespace Skynet.Base
             //automatically accept every friend request we receive
             tox.AddFriendNoRequest(e.PublicKey);
             Console.WriteLine("Received friend req: " + e.PublicKey);
+        }
+
+        void tox_OnFriendConnectionStatusChanged(object sender, ToxEventArgs.FriendConnectionStatusEventArgs e) {
+            // find target friend in all nodes
+            Node.AllLocalNodes.ForEach((mnode) => {
+                List<NodeId> relatedNodes = mnode.childNodes.Concat(mnode.brotherNodes).ToList();
+                relatedNodes.Add(mnode.parent);
+                relatedNodes.Add(mnode.grandParents);
+                relatedNodes.
+                Where(x => new ToxId(x.toxid).PublicKey.GetString() == tox.GetFriendPublicKey(e.FriendNumber).GetString())
+                .ToList().ForEach(nodeToRemove => {
+                    mnode.relatedNodesStatusChanged(nodeToRemove);
+                });
+            });
         }
 
         bool sendResponse(Response res, ToxId toxid)
