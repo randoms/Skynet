@@ -415,13 +415,13 @@ namespace Skynet.Base.Contollers
 
     
 
-    class NodeResponse {
+    public class NodeResponse {
         public NodeResponseCode statusCode;
         public string description;
         public string value;
     }
 
-    enum NodeResponseCode {
+    public enum NodeResponseCode {
         NotFound,
         OK,
         InvalidRequest,

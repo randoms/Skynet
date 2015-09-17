@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using SharpTox.Core;
+using Skynet.Base;
 using Skynet.Base.Contollers;
 using System;
 using System.Collections.Generic;
@@ -34,7 +35,7 @@ namespace Skynet.Models
             selfNode = new NodeId
             {
                 uuid = Guid.NewGuid().ToString(),
-                toxid = skynet.tox.Id.ToString()
+                toxid = Base.Skynet.tox.Id.ToString()
             };
             Task.Factory.StartNew(async () =>
             {
@@ -102,7 +103,8 @@ namespace Skynet.Models
                     toToxId = parentNode.toxid,
                 };
                 bool addParentReqRes = false;
-                Response mRes = await mSkynet.sendRequest(new ToxId(parentNode.toxid), addParentReq, out addParentReqRes);
+                Response mRes = await RequestProxy.sendRequest(addParentReq);
+                //Response mRes = await mSkynet.sendRequest(new ToxId(parentNode.toxid), addParentReq, out addParentReqRes);
                 // send req failed or target is currently locked, ie target is not avaliable right now. remove target node from nodelist
                 if (!addParentReqRes)
                 {
@@ -207,8 +209,8 @@ namespace Skynet.Models
             }
             // grandparent node offline just delete friend record
             ToxErrorFriendDelete mError = ToxErrorFriendDelete.Ok;
-            int targetFriendNum = mSkynet.tox.GetFriendByPublicKey(new ToxId(childNodeToRemove.toxid).PublicKey);
-            mSkynet.tox.DeleteFriend(targetFriendNum, out mError);
+            int targetFriendNum = Base.Skynet.tox.GetFriendByPublicKey(new ToxId(childNodeToRemove.toxid).PublicKey);
+            Base.Skynet.tox.DeleteFriend(targetFriendNum, out mError);
         }
 
         public NodeInfo getInfo() {

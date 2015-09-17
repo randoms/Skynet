@@ -204,3 +204,57 @@ node在很大程度上是重复的。很多node应该会共享tox连接。比如
 
 还是要给每个文件都建立网络。因为文件的存储原则上是你用到了这个文件，你就有存储共享的责任，反之则无。如果分成文件group每个人就要存储一些自己不需要的文件。
 为了解决这个问题可以把文件分成静态文件和动态文件。只对动态文件建立网络。静态文件只是下载而已。
+
+
+为什么不全部使用一个网络？
+因为这样每个节点就要处理很多和自己不相关的东西。网络比较多我感觉不停的加入网络，处理网络的变化会很耗资源。
+
+对于一个1000个页面的网站，在浏览的时候没必要把所有的网站内容都下载下来。应该是用到什么内容下载什么内容。所以实际浏览这个网站的时候并不会建立很多连接。
+
+需要有一个http的文件接口
+获取一个文件
+http://127.0.0.1/node/node-uuid/file/sha
+    过程
+        检查本地网络是否有此文件记录
+
+这样也还是有一点不太好，比如即使内容一样的文件可能也还是会有不同的uuid。这样就会浪费存储资源。可以用sha值作为文件的标识。
+创建文件的过程要进行修改
+1. 计算sha值，在本地数据库添加文件记录
+2. 检查是否网络中已经存在此文件
+3. 如果存在，则加入此文件对应的node网络，反之不存在则创建新的node网络。
+
+启动过程。检查本地有哪些文件记录。加入每个文件的网络。
+
+
+如何进行文件的检索
+1. 利用sha值进行检索
+    所有的tox节点都必须加入一个node网络。通过此网络对文件检索进行广播查询。
+2. 根据文件名进行检索
+    同上
+
+问题，为什么文件要进行分割？
+减少文件占用的空间，把一个文件的不同内容存储在不同的节点上，这样每个节点所需要的存储空间就会小很多。
+这个应该以后进行考虑，现阶段不对文件进行分割，同样文件的传递策略现阶段也不做深入考虑。因为一旦分割，利用sha值作为标识处理起来就会更复杂一些。
+
+url format
+/api/tox/{tox-id}/node/{node-id}/entity
+
+node request format
+
+public string url { get; set; }
+public string method { get; set; }
+public string uuid { get; set; }
+public string content { get; set; }
+public string fromNodeId { get; set; }
+public string fromToxId { get; set; }
+public string toNodeId { get; set; }
+public string toToxId { get; set; }
+
+http request format // I donot want to miss any info from node request
+
+url
+method
+content
+Request-Uuid
+From-Tox-Id
+From-Node-Id

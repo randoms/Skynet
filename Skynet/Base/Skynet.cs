@@ -1,9 +1,11 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Owin.Hosting;
+using Newtonsoft.Json;
 using SharpTox.Core;
 using Skynet.Base.Contollers;
 using Skynet.Models;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -14,30 +16,15 @@ namespace Skynet.Base
     public class Skynet
     {
 
-        public  Tox tox;
+        public static Tox tox;
         private Dictionary<string, Package> mPackageCache = new Dictionary<string, Package>();
         private Dictionary<string, Action<Response>> mPendingReqList = new Dictionary<string, Action<Response>>();
-        private Router mRouter;
         public static int MAX_MSG_LENGTH = 1024;
         private List<string> connectedList = new List<string>();
+        private static Skynet instance;
 
         public Skynet()
         {
-            // set router
-            this.mRouter = new Router(this);
-            mRouter.Add("^/handshake/?$", (Request req)=> {
-                return Task.Factory.StartNew(() =>
-                {
-                    return new Response() {
-                        url=req.url,
-                        uuid=req.uuid,
-                        content="OK"
-                    };
-                });
-            });
-
-            mRouter.Add("^/node", NodeController.DataControl);
-
             // init tox client
             ToxOptions options = new ToxOptions(true, true);
             tox = new Tox(options);
@@ -54,20 +41,20 @@ namespace Skynet.Base
 
             string id = tox.Id.ToString();
             Console.WriteLine("ID: {0}", id);
-            /*Task.Factory.StartNew(() =>
-            {
-                while (true)
-                {
-                    Thread.Sleep(1000);
-                    Console.WriteLine(tox.IsConnected);
-                    Console.WriteLine(id);
-                }
-            });*/
+            instance = this;
+            // start http server
+            string baseUrl = "http://localhost:" + ConfigurationManager.AppSettings["port"] + "/";
+            WebApp.Start<StartUp>(url: baseUrl);
+            Console.WriteLine("running web service");
+        }
+
+        public static Skynet getInstance() {
+            return instance;
         }
 
         static ToxNode[] Nodes = new ToxNode[]
         {
-            new ToxNode("42.159.192.12", 33445, new ToxKey(ToxKeyType.Public, "7F613A23C9EA5AC200264EB727429F39931A86C39B67FC14D9ECA4EBE0D37F25"))
+            new ToxNode("198.98.51.198", 33445, new ToxKey(ToxKeyType.Public, "1D5A5F2F5D6233058BF0259B09622FB40B482E4FA0931EB8FD3AB8E7BF7DAF6F"))
         };
 
         void tox_OnFriendMessageReceived(object sender, ToxEventArgs.FriendMessageEventArgs e)
@@ -162,7 +149,8 @@ namespace Skynet.Base
             Request newReq = JsonConvert.DeserializeObject<Request>(mcontentCache);
             Task.Factory.StartNew(async () =>
             {
-                Response mRes = await mRouter.route(newReq);
+                // send response to http server
+                Response mRes = await RequestProxy.sendRequest(newReq);
                 sendResponse(mRes, tox.GetFriendPublicKey(friendNum));
             });
         }
