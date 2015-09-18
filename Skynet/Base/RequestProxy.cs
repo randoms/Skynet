@@ -16,13 +16,13 @@ namespace Skynet.Base
     /// </summary>
     class RequestProxy
     {
-        public static async Task<Response> sendRequest(Request req)
+        public static async Task<ToxResponse> sendRequest(ToxRequest req)
         {
             // if req is not send to local node
-            if (req.fromToxId != Skynet.tox.Id.ToString()) {
+            if (!Skynet.LocalSkynet.Any(x => x.tox.Id.ToString() == req.fromToxId)) {
                 // send req to remove tox client
                 bool mResStatus = false;
-                return await Skynet.getInstance().sendRequest(new ToxId(req.toToxId), req, out mResStatus);
+                return await Skynet.webServiceHost.sendRequest(new ToxId(req.toToxId), req, out mResStatus);
             }
             // request was sent to local host
             using (var client = new HttpClient())
@@ -38,6 +38,18 @@ namespace Skynet.Base
             }
         }
 
-        
+        public static ToxRequest toNodeRequest(HttpRequestMessage req) {
+            return new ToxRequest
+            {
+                url = req.RequestUri.ToString(),
+                method = req.Method.ToString(),
+                content = req.Content.ToString(),
+                uuid = req.Headers.GetValues("Uuid").FirstOrDefault(),
+                fromNodeId = req.Headers.GetValues("From-Node-Id").FirstOrDefault(),
+                fromToxId = req.Headers.GetValues("From-Tox-Id").FirstOrDefault(),
+                toNodeId = req.Headers.GetValues("To-Node-Id").FirstOrDefault(),
+                toToxId = req.Headers.GetValues("To-Tox-Id").FirstOrDefault(),
+            };
+        }
     }
 }

@@ -12,7 +12,7 @@ namespace Skynet.Base.Contollers
 {
     class NodeController
     {
-        public static Task<Response> DataControl(Request req) {
+        public static Task<ToxResponse> DataControl(ToxRequest req) {
             return Task.Factory.StartNew(() =>
             {
                 if (new Regex(@"^node/?$").IsMatch(req.url))

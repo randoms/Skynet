@@ -4,6 +4,7 @@ using Skynet.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
@@ -26,7 +27,7 @@ namespace Skynet.Base.Contollers
             }
 
             // check if target tox client is local client
-            if (id == Skynet.tox.Id.ToString())
+            if (Skynet.LocalSkynet.Any(x => x.tox.Id.ToString() == id))
             {
                 // list all nodes on target tox client
                 return new NodeResponse
@@ -40,27 +41,17 @@ namespace Skynet.Base.Contollers
                     })
                 };
             }
-            // if not send tox req to target tox client
+            // if not, send tox req to target tox client
             bool reqStatus = false;
-            Response nodeResponse = await Skynet.getInstance().sendRequest(new ToxId(id), new Request {
-                //fromNodeId = 
-                // I need a node to send request
-                // from info is missing
-            }, out reqStatus);
-
-            return new NodeResponse
-            {
-
-            };
-        }
-
-        [Route("test")]
-        [HttpGet]
-        public NodeResponse test() {
-            return new NodeResponse { statusCode = NodeResponseCode.OK };
+            ToxResponse nodeResponse = await .sendRequest(new ToxId(id), RequestProxy.toNodeRequest(Request), out reqStatus);
+            if (reqStatus)
+                return JsonConvert.DeserializeObject<NodeResponse>(nodeResponse.content);
+            else
+                return new NodeResponse
+                {
+                    statusCode = NodeResponseCode.NotFound,
+                    description = "target does not exist or target is current offline",
+                };
         }
     }
-
-    
-    
 }

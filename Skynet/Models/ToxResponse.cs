@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Skynet.Models
 {
-    public class Response
+    public class ToxResponse
     {
         public string url { get; set; }
         public string uuid { get; set; }

@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Skynet.Models
 {
-    class Node
+    public class Node
     {
         public static List<Node> AllLocalNodes = new List<Node>();
         public Base.Skynet mSkynet { get; set; }
@@ -35,7 +35,7 @@ namespace Skynet.Models
             selfNode = new NodeId
             {
                 uuid = Guid.NewGuid().ToString(),
-                toxid = Base.Skynet.tox.Id.ToString()
+                toxid = skynet.tox.Id.ToString()
             };
             Task.Factory.StartNew(async () =>
             {
@@ -68,7 +68,7 @@ namespace Skynet.Models
         /// </summary>
         /// <param name="req"></param>
         /// <returns></returns>
-        public Task boardCastAll(Request req)
+        public Task boardCastAll(ToxRequest req)
         {
             return Task.Factory.StartNew(() =>
             {
@@ -91,7 +91,7 @@ namespace Skynet.Models
             while (targetNodeList.Count > 0 && target == null)
             {
                 NodeId parentNode = targetNodeList[0];
-                Request addParentReq = new Request
+                ToxRequest addParentReq = new ToxRequest
                 {
                     url = "node/childNodes",
                     method = "post",
@@ -103,7 +103,7 @@ namespace Skynet.Models
                     toToxId = parentNode.toxid,
                 };
                 bool addParentReqRes = false;
-                Response mRes = await RequestProxy.sendRequest(addParentReq);
+                ToxResponse mRes = await RequestProxy.sendRequest(addParentReq);
                 //Response mRes = await mSkynet.sendRequest(new ToxId(parentNode.toxid), addParentReq, out addParentReqRes);
                 // send req failed or target is currently locked, ie target is not avaliable right now. remove target node from nodelist
                 if (!addParentReqRes)
@@ -163,7 +163,7 @@ namespace Skynet.Models
                 childNodes.ForEach(remindingNodes => {
                     bool status = false;
                     // send request to reminding nodes
-                    mSkynet.sendRequest(new ToxId(remindingNodes.toxid), new Request
+                    mSkynet.sendRequest(new ToxId(remindingNodes.toxid), new ToxRequest
                     {
                         url = "node/" + remindingNodes.uuid + "/brotherNodes/" + childNodeToRemove.uuid,
                         method = "delete",
@@ -189,7 +189,7 @@ namespace Skynet.Models
                     {
                         bool status = false;
                         // send request to reminding nodes
-                        mSkynet.sendRequest(new ToxId(child.toxid), new Request
+                        mSkynet.sendRequest(new ToxId(child.toxid), new ToxRequest
                         {
                             url = "node/" + child.uuid + "/grandParents",
                             method = "put",
@@ -209,8 +209,8 @@ namespace Skynet.Models
             }
             // grandparent node offline just delete friend record
             ToxErrorFriendDelete mError = ToxErrorFriendDelete.Ok;
-            int targetFriendNum = Base.Skynet.tox.GetFriendByPublicKey(new ToxId(childNodeToRemove.toxid).PublicKey);
-            Base.Skynet.tox.DeleteFriend(targetFriendNum, out mError);
+            int targetFriendNum = mSkynet.tox.GetFriendByPublicKey(new ToxId(childNodeToRemove.toxid).PublicKey);
+            mSkynet.tox.DeleteFriend(targetFriendNum, out mError);
         }
 
         public NodeInfo getInfo() {
@@ -248,7 +248,7 @@ namespace Skynet.Models
         }
     }
 
-    class NodeInfo {
+    public class NodeInfo {
         public string uuid { get; set; }
         public NodeId parent { get; set; }
         public NodeId grandParents { get; set; }
@@ -263,7 +263,7 @@ namespace Skynet.Models
         public bool isConnected = false; // is the node is connected to its net
     }
 
-    class NodeLock {
+    public class NodeLock {
         public bool isLocked;
         public NodeId from;
     }

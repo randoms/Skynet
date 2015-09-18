@@ -16,17 +16,19 @@ namespace Skynet.Base
     public class Skynet
     {
 
-        public static Tox tox;
+        public Tox tox;
         private Dictionary<string, Package> mPackageCache = new Dictionary<string, Package>();
-        private Dictionary<string, Action<Response>> mPendingReqList = new Dictionary<string, Action<Response>>();
+        private Dictionary<string, Action<ToxResponse>> mPendingReqList = new Dictionary<string, Action<ToxResponse>>();
         public static int MAX_MSG_LENGTH = 1024;
         private List<string> connectedList = new List<string>();
-        private static Skynet instance;
+        public int httpPort;
+        
 
         public Skynet()
         {
             // init tox client
             ToxOptions options = new ToxOptions(true, true);
+            
             tox = new Tox(options);
             tox.OnFriendRequestReceived += tox_OnFriendRequestReceived;
             tox.OnFriendMessageReceived += tox_OnFriendMessageReceived;
@@ -41,15 +43,11 @@ namespace Skynet.Base
 
             string id = tox.Id.ToString();
             Console.WriteLine("ID: {0}", id);
-            instance = this;
-            // start http server
-            string baseUrl = "http://localhost:" + ConfigurationManager.AppSettings["port"] + "/";
-            WebApp.Start<StartUp>(url: baseUrl);
-            Console.WriteLine("running web service");
-        }
 
-        public static Skynet getInstance() {
-            return instance;
+            // start http server
+            httpPort = Utils.Utils.FreeTcpPort();
+            string baseUrl = "http://localhost:" + httpPort + "/";
+            WebApp.Start<StartUp>(url: baseUrl);
         }
 
         static ToxNode[] Nodes = new ToxNode[]
@@ -104,7 +102,7 @@ namespace Skynet.Base
             });
         }
 
-        bool sendResponse(Response res, ToxId toxid)
+        bool sendResponse(ToxResponse res, ToxId toxid)
         {
             string resContent = JsonConvert.SerializeObject(res);
             int packageNum = resContent.Length / MAX_MSG_LENGTH + 1;
@@ -127,7 +125,7 @@ namespace Skynet.Base
             return result;
         }
 
-        bool sendResponse(Response res, ToxKey toxkey)
+        bool sendResponse(ToxResponse res, ToxKey toxkey)
         {
             return sendResponse(res, new ToxId(toxkey.GetBytes(), 100));
         }
@@ -141,26 +139,26 @@ namespace Skynet.Base
             // check if this is a response
             if (mPendingReqList.ContainsKey(receivedPackage.uuid))
             {
-                mPendingReqList[receivedPackage.uuid](JsonConvert.DeserializeObject<Response>(mcontentCache));
+                mPendingReqList[receivedPackage.uuid](JsonConvert.DeserializeObject<ToxResponse>(mcontentCache));
                 mPendingReqList.Remove(receivedPackage.uuid);
                 return;
             }
 
-            Request newReq = JsonConvert.DeserializeObject<Request>(mcontentCache);
+            ToxRequest newReq = JsonConvert.DeserializeObject<ToxRequest>(mcontentCache);
             Task.Factory.StartNew(async () =>
             {
                 // send response to http server
-                Response mRes = await RequestProxy.sendRequest(newReq);
+                ToxResponse mRes = await RequestProxy.sendRequest(newReq);
                 sendResponse(mRes, tox.GetFriendPublicKey(friendNum));
             });
         }
 
-        public bool sendMsg(ToxKey toxkey, String msg)
+        public bool sendMsg(ToxKey toxkey, string msg)
         {
             return sendMsg(new ToxId(toxkey.GetBytes(), 100), msg);
         }
 
-        public bool sendMsg(ToxId toxid, String msg)
+        public bool sendMsg(ToxId toxid, string msg)
         {
             ToxKey toxkey = toxid.PublicKey;
             int friendNum = tox.GetFriendByPublicKey(toxkey);
@@ -174,7 +172,7 @@ namespace Skynet.Base
             int waitCount = 0;
             int maxCount = 500;
             if (connectedList.IndexOf(toxkey.GetString()) == -1)
-                maxCount = 30000; // first time wait for 60s
+                maxCount = 1200; // first time wait for 120s
             while (tox.GetFriendConnectionStatus(friendNum) == ToxConnectionStatus.None && waitCount < maxCount)
             {
                 if (waitCount % 100 == 0)
@@ -193,7 +191,7 @@ namespace Skynet.Base
             return msgRes > 0;
         }
 
-        public Task<Response> sendRequest(ToxId toxid, Request req, out bool status) {
+        public Task<ToxResponse> sendRequest(ToxId toxid, ToxRequest req, out bool status) {
             string reqContent = JsonConvert.SerializeObject(req);
             int packageNum = reqContent.Length / MAX_MSG_LENGTH + 1;
             bool res = false;
@@ -211,17 +209,23 @@ namespace Skynet.Base
                     currentCount = i,
                     content = mcontent,
                 }));
+                if (!res) {
+                    status = false;
+                    return Task.Factory.StartNew<ToxResponse>(()=> {
+                        return null;
+                    });
+                }
             }
             status = res;
             bool isResponseReceived = false;
-            Response mRes = null;
+            ToxResponse mRes = null;
             if (res) {
                 mPendingReqList.Add(req.uuid, (response)=> {
                     isResponseReceived = true;
                     mRes = response;
                 });
             }
-            return Task.Factory.StartNew<Response>(() =>
+            return Task.Factory.StartNew(() =>
             {
                 while (!isResponseReceived)
                 {
