@@ -103,8 +103,7 @@ namespace Skynet.Models
                     toToxId = parentNode.toxid,
                 };
                 bool addParentReqRes = false;
-                ToxResponse mRes = await RequestProxy.sendRequest(addParentReq);
-                //Response mRes = await mSkynet.sendRequest(new ToxId(parentNode.toxid), addParentReq, out addParentReqRes);
+                ToxResponse mRes = await RequestProxy.sendRequest(mSkynet, addParentReq);
                 // send req failed or target is currently locked, ie target is not avaliable right now. remove target node from nodelist
                 if (!addParentReqRes)
                 {

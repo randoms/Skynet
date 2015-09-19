@@ -1,13 +1,10 @@
 ﻿using Microsoft.Owin.Hosting;
 using Newtonsoft.Json;
 using SharpTox.Core;
-using Skynet.Base.Contollers;
 using Skynet.Models;
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,10 +16,11 @@ namespace Skynet.Base
         public Tox tox;
         private Dictionary<string, Package> mPackageCache = new Dictionary<string, Package>();
         private Dictionary<string, Action<ToxResponse>> mPendingReqList = new Dictionary<string, Action<ToxResponse>>();
-        public static int MAX_MSG_LENGTH = 1024;
+        public static int MAX_MSG_LENGTH = 512;
         private List<string> connectedList = new List<string>();
         public int httpPort;
         
+        public static List<Skynet> allInstance = new List<Skynet>();
 
         public Skynet()
         {
@@ -44,10 +42,24 @@ namespace Skynet.Base
             string id = tox.Id.ToString();
             Console.WriteLine("ID: {0}", id);
 
+            // Log tox online status
+            Task.Run(() => {
+                while (true) {
+                    Thread.Sleep(200);
+                    if (tox.IsConnected) {
+                        Console.WriteLine("From Server " + httpPort + ":" + "tox is connected.");
+                        break;
+                    }
+                }
+            });
+
             // start http server
             httpPort = Utils.Utils.FreeTcpPort();
             string baseUrl = "http://localhost:" + httpPort + "/";
             WebApp.Start<StartUp>(url: baseUrl);
+            Console.WriteLine("Server listening on " + httpPort);
+
+            allInstance.Add(this);
         }
 
         static ToxNode[] Nodes = new ToxNode[]
@@ -59,8 +71,6 @@ namespace Skynet.Base
         {
             //get the name associated with the friendnumber
             string name = tox.GetFriendName(e.FriendNumber);
-            //print the message to the console
-            Console.WriteLine("<{0}> {1}", name, e.Message);
 
             Package receivedPackage = JsonConvert.DeserializeObject<Package>(e.Message);
             
@@ -85,21 +95,24 @@ namespace Skynet.Base
         {
             //automatically accept every friend request we receive
             tox.AddFriendNoRequest(e.PublicKey);
+            Console.WriteLine("From Server " + httpPort + " ");
             Console.WriteLine("Received friend req: " + e.PublicKey);
         }
 
         void tox_OnFriendConnectionStatusChanged(object sender, ToxEventArgs.FriendConnectionStatusEventArgs e) {
-            // find target friend in all nodes
-            Node.AllLocalNodes.ForEach((mnode) => {
-                List<NodeId> relatedNodes = mnode.childNodes.Concat(mnode.brotherNodes).ToList();
-                relatedNodes.Add(mnode.parent);
-                relatedNodes.Add(mnode.grandParents);
-                relatedNodes.
-                Where(x => new ToxId(x.toxid).PublicKey.GetString() == tox.GetFriendPublicKey(e.FriendNumber).GetString())
-                .ToList().ForEach(nodeToRemove => {
-                    mnode.relatedNodesStatusChanged(nodeToRemove);
+            if (e.Status == ToxConnectionStatus.None) {
+                // find target friend in all nodes
+                Node.AllLocalNodes.ForEach((mnode) => {
+                    List<NodeId> relatedNodes = mnode.childNodes.Concat(mnode.brotherNodes).ToList();
+                    relatedNodes.Add(mnode.parent);
+                    relatedNodes.Add(mnode.grandParents);
+                    relatedNodes.
+                    Where(x => x.toxid == tox.Id.ToString())
+                    .ToList().ForEach(nodeToRemove => {
+                        mnode.relatedNodesStatusChanged(nodeToRemove);
+                    });
                 });
-            });
+            }
         }
 
         bool sendResponse(ToxResponse res, ToxId toxid)
@@ -148,7 +161,8 @@ namespace Skynet.Base
             Task.Factory.StartNew(async () =>
             {
                 // send response to http server
-                ToxResponse mRes = await RequestProxy.sendRequest(newReq);
+                Console.WriteLine("new Req: " + JsonConvert.SerializeObject(newReq));
+                ToxResponse mRes = await RequestProxy.sendRequest(this, newReq);
                 sendResponse(mRes, tox.GetFriendPublicKey(friendNum));
             });
         }
@@ -160,6 +174,16 @@ namespace Skynet.Base
 
         public bool sendMsg(ToxId toxid, string msg)
         {
+            // wait toxcore online
+            int maxOnlineWaitTime = 20000; // 20s
+            int onlineWaitCount = 0;
+            while (!tox.IsConnected) {
+                Thread.Sleep(10);
+                onlineWaitCount += 10;
+                if (onlineWaitCount > maxOnlineWaitTime)
+                    return false;
+            }
+
             ToxKey toxkey = toxid.PublicKey;
             int friendNum = tox.GetFriendByPublicKey(toxkey);
             if (friendNum == -1)
@@ -172,12 +196,12 @@ namespace Skynet.Base
             int waitCount = 0;
             int maxCount = 500;
             if (connectedList.IndexOf(toxkey.GetString()) == -1)
-                maxCount = 1200; // first time wait for 120s
+                maxCount = 200*1000; // first time wait for 200s
             while (tox.GetFriendConnectionStatus(friendNum) == ToxConnectionStatus.None && waitCount < maxCount)
             {
-                if (waitCount % 100 == 0)
-                    Console.WriteLine("target is offline." + waitCount/100);
-                waitCount++;
+                if (waitCount % 1000 == 0)
+                    Console.WriteLine("target is offline." + waitCount/1000);
+                waitCount += 10;
                 Thread.Sleep(10);
             }
             if (waitCount == maxCount)

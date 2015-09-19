@@ -67,8 +67,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\SharpTox\SharpTox\SharpTox.csproj">
-      <Project>{B3AB7D92-3D7A-41B2-86D1-D1B256B07663}</Project>
+    <ProjectReference Include="..\..\SharpTox-master\SharpTox\SharpTox.csproj">
+      <Project>{b3ab7d92-3d7a-41b2-86d1-d1b256b07663}</Project>
       <Name>SharpTox</Name>
     </ProjectReference>
     <ProjectReference Include="..\Skynet\Skynet.csproj">

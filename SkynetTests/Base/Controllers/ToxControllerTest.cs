@@ -18,7 +18,7 @@ namespace SkynetTests
         public ToxControllerTest()
         {
             mSkynet = new Skynet.Base.Skynet();
-            baseUrl = "http://localhost:" + Skynet.Base.Config.port + "/";
+            baseUrl = "http://localhost:" + mSkynet.httpPort + "/";
         }
 
         [TestMethod]

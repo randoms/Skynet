@@ -17,7 +17,7 @@ namespace SkynetTests.Base.Controllers
         string baseUrl;
         public ParentNodeControllerTest() {
             mSkynet = new Skynet.Base.Skynet();
-            baseUrl = baseUrl = "http://localhost:" + Skynet.Base.Config.port + "/";
+            baseUrl = baseUrl = "http://localhost:" + mSkynet.httpPort + "/";
         }
 
         [TestMethod]

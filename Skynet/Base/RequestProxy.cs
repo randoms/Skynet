@@ -16,18 +16,19 @@ namespace Skynet.Base
     /// </summary>
     class RequestProxy
     {
-        public static async Task<ToxResponse> sendRequest(ToxRequest req)
+        // TODO: add all methods support
+        public static async Task<ToxResponse> sendRequest(Skynet host, ToxRequest req)
         {
             // if req is not send to local node
-            if (!Skynet.LocalSkynet.Any(x => x.tox.Id.ToString() == req.fromToxId)) {
+            if (host.tox.Id.ToString() != req.toToxId) {
                 // send req to remove tox client
                 bool mResStatus = false;
-                return await Skynet.webServiceHost.sendRequest(new ToxId(req.toToxId), req, out mResStatus);
+                return await host.sendRequest(new ToxId(req.toToxId), req, out mResStatus);
             }
             // request was sent to local host
             using (var client = new HttpClient())
             {
-                string baseUrl = "http://localhost:" + ConfigurationManager.AppSettings["port"] + "/";
+                string baseUrl = "http://localhost:" + host.httpPort + "/";
                 client.DefaultRequestHeaders.Add("Uuid", req.uuid);
                 client.DefaultRequestHeaders.Add("From-Node-Id", req.fromNodeId);
                 client.DefaultRequestHeaders.Add("From-Tox-Id", req.fromToxId);

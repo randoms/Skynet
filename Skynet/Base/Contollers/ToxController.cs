@@ -17,6 +17,7 @@ namespace Skynet.Base.Contollers
         [HttpGet]
         public async Task<NodeResponse> Get(string id)
         {
+            Skynet curHost = Skynet.allInstance.Where(x => x.httpPort == Request.RequestUri.Port).FirstOrDefault();
             if (!ToxId.IsValid(id))
             {
                 return new NodeResponse
@@ -27,7 +28,7 @@ namespace Skynet.Base.Contollers
             }
 
             // check if target tox client is local client
-            if (Skynet.LocalSkynet.Any(x => x.tox.Id.ToString() == id))
+            if (curHost.tox.Id.ToString() == id)
             {
                 // list all nodes on target tox client
                 return new NodeResponse
@@ -43,7 +44,7 @@ namespace Skynet.Base.Contollers
             }
             // if not, send tox req to target tox client
             bool reqStatus = false;
-            ToxResponse nodeResponse = await .sendRequest(new ToxId(id), RequestProxy.toNodeRequest(Request), out reqStatus);
+            ToxResponse nodeResponse = await curHost.sendRequest(new ToxId(id), RequestProxy.toNodeRequest(Request), out reqStatus);
             if (reqStatus)
                 return JsonConvert.DeserializeObject<NodeResponse>(nodeResponse.content);
             else
