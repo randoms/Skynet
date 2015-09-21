@@ -10,7 +10,7 @@ using System.Web.Http;
 
 namespace Skynet.Base.Contollers
 {
-    class ParentNodeController : ApiController
+    public class ParentNodeController : ApiController
     {
         [Route("api/node/{nodeId}/parent")]
         [HttpGet]
@@ -23,7 +23,7 @@ namespace Skynet.Base.Contollers
                     description = "your node id is invalid",
                 };
             }
-            Node targetNode = Node.AllLocalNodes.Where(x => x.uuid == nodeId).DefaultIfEmpty(null).FirstOrDefault();
+            Node targetNode = Node.AllLocalNodes.Where(x => x.selfNode.uuid == nodeId).DefaultIfEmpty(null).FirstOrDefault();
             if (targetNode == null)
             {
                 return new NodeResponse
@@ -36,8 +36,9 @@ namespace Skynet.Base.Contollers
             {
                 statusCode = NodeResponseCode.OK,
                 description = "get target node info success",
-                value = JsonConvert.SerializeObject(targetNode.getInfo())
+                value = JsonConvert.SerializeObject(targetNode.parent)
             };
+            
         }
 
         [Route("api/node/{nodeId}/parent")]
@@ -51,7 +52,7 @@ namespace Skynet.Base.Contollers
                     description = "your node id is invalid",
                 };
             }
-            Node targetNode = Node.AllLocalNodes.Where(x => x.uuid == nodeId).DefaultIfEmpty(null).FirstOrDefault();
+            Node targetNode = Node.AllLocalNodes.Where(x => x.selfNode.uuid == nodeId).DefaultIfEmpty(null).FirstOrDefault();
             if (targetNode == null)
             {
                 return new NodeResponse
@@ -77,6 +78,7 @@ namespace Skynet.Base.Contollers
                 {
                     statusCode = NodeResponseCode.OK,
                     description = "set parent success",
+                    value = JsonConvert.SerializeObject(values)
                 };
             }
         }

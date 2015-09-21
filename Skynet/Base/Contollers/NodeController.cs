@@ -34,7 +34,7 @@ namespace Skynet.Base.Contollers
                 }
 
                 string targetNodeId = req.url.Split('/')[1];
-                Node targetNode = Node.AllLocalNodes.Where(x => x.uuid == targetNodeId).DefaultIfEmpty(null).FirstOrDefault();
+                Node targetNode = Node.AllLocalNodes.Where(x => x.selfNode.uuid == targetNodeId).DefaultIfEmpty(null).FirstOrDefault();
                 if (targetNode == null)
                 {
                     return req.createResponse(JsonConvert.SerializeObject(new NodeResponse

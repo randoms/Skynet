@@ -15,7 +15,6 @@ namespace Skynet.Models
         public static List<Node> AllLocalNodes = new List<Node>();
         public Base.Skynet mSkynet { get; set; }
 
-        public string uuid { get; set; }
         public NodeId parent { get; set; }
         public NodeId grandParents { get; set; }
         public NodeId selfNode { get; set; }
@@ -41,6 +40,7 @@ namespace Skynet.Models
             {
                 await joinNetByTargetParents(bootStrapParents); // if successed parent will be set, and isConnected will set to true
             });
+            nodeChangeLock = new NodeLock { from = null, isLocked = false };
             AllLocalNodes.Add(this);
         }
 
@@ -215,7 +215,7 @@ namespace Skynet.Models
         public NodeInfo getInfo() {
             return new NodeInfo
             {
-                uuid = uuid,
+                uuid = selfNode.uuid,
                 parent = parent,
                 grandParents = grandParents,
                 selfNode = selfNode,

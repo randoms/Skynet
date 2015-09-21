@@ -54,5 +54,17 @@ namespace Skynet.Base.Contollers
                     description = "target does not exist or target is current offline",
                 };
         }
+
+        [Route("api/tox")]
+        [HttpGet]
+        public NodeResponse GetAll() {
+            List<string> toxList = Skynet.allInstance.Select(x => x.tox.Id.ToString()).ToList();
+            return new NodeResponse
+            {
+                statusCode = NodeResponseCode.OK,
+                description = "success",
+                value = JsonConvert.SerializeObject(toxList)
+            };
+        }
     }
 }

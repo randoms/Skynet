@@ -57,6 +57,7 @@ namespace SkynetTests.Base
                 {
                     url = "tox/" + mSkynet.tox.Id.ToString(),
                     uuid = Guid.NewGuid().ToString(),
+                    method = "get",
                     content = "",
                     fromNodeId = mNode2.selfNode.uuid,
                     fromToxId = mNode2.selfNode.toxid,
@@ -65,8 +66,10 @@ namespace SkynetTests.Base
                 }, out status);
                 Console.WriteLine("status " + status);
                 Assert.AreEqual(status, true);
-                NodeResponse nodeRes = JsonConvert.DeserializeObject<NodeResponse>(res.content);
-                Assert.AreEqual(nodeRes.statusCode, NodeResponseCode.OK);
+                if (status) {
+                    NodeResponse nodeRes = JsonConvert.DeserializeObject<NodeResponse>(res.content);
+                    Assert.AreEqual(nodeRes.statusCode, NodeResponseCode.OK);
+                }
             }).GetAwaiter().GetResult();
         }
     }

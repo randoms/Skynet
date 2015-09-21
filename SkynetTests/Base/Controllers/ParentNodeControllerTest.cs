@@ -6,6 +6,7 @@ using Skynet.Models;
 using System.Collections.Generic;
 using Skynet.Base.Contollers;
 using Newtonsoft.Json;
+using Skynet.Base;
 
 namespace SkynetTests.Base.Controllers
 {
@@ -21,7 +22,7 @@ namespace SkynetTests.Base.Controllers
         }
 
         [TestMethod]
-        public void Get()
+        public void GetParnentNode()
         {
             Task.Run(async () =>
             {
@@ -40,6 +41,36 @@ namespace SkynetTests.Base.Controllers
                     NodeResponse mRes = JsonConvert.DeserializeObject<NodeResponse>(res);
                     Assert.AreEqual(mRes.statusCode, NodeResponseCode.NotFound);
                 }
+            });
+        }
+
+        [TestMethod]
+        public void setParentNode() {
+            Task.Run(() => {
+
+                Skynet.Base.Skynet sender = new Skynet.Base.Skynet();
+
+                Node mNode = new Node(new List<NodeId>(), mSkynet);
+                Task.Run(async () => {
+                    // create a node
+
+                    Node parentNode = new Node(new List<NodeId>(), sender);
+
+                    ToxResponse res = await RequestProxy.sendRequest(mSkynet, new ToxRequest
+                    {
+                        uuid = Guid.NewGuid().ToString(),
+                        url = "node/" + mNode.selfNode.uuid + "/parent",
+                        method = "put",
+                        content = JsonConvert.SerializeObject(parentNode.selfNode),
+                        fromNodeId = parentNode.selfNode.uuid,
+                        fromToxId = sender.tox.Id.ToString(),
+                        toNodeId = mNode.selfNode.uuid,
+                        toToxId = mSkynet.tox.Id.ToString(),
+                    });
+                    NodeResponse mRes = JsonConvert.DeserializeObject<NodeResponse>(res.content);
+                    Console.WriteLine("value: " + mRes.value);
+                    Assert.AreEqual(mRes.statusCode, NodeResponseCode.OK);
+                }).GetAwaiter().GetResult();
             });
         }
     }

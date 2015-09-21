@@ -41,7 +41,7 @@ namespace SkynetTests
             {
                 using (var client = new HttpClient())
                 {
-                    client.Timeout = TimeSpan.FromSeconds(200); // This process may take up to 2mins
+                    client.Timeout = TimeSpan.FromSeconds(300); // This process may take up to 2mins
                     // create a node
                     Node mNode = new Node(new List<NodeId>(), mSkynet);
                     // set http headers

@@ -62,6 +62,10 @@ namespace Skynet.Base
             allInstance.Add(this);
         }
 
+        ~Skynet() {
+            tox.Dispose();
+        }
+
         static ToxNode[] Nodes = new ToxNode[]
         {
             new ToxNode("198.98.51.198", 33445, new ToxKey(ToxKeyType.Public, "1D5A5F2F5D6233058BF0259B09622FB40B482E4FA0931EB8FD3AB8E7BF7DAF6F"))
