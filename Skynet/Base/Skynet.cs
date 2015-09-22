@@ -178,6 +178,10 @@ namespace Skynet.Base
 
         public bool sendMsg(ToxId toxid, string msg)
         {
+            // check if this message is send to itself
+            if (toxid.ToString() == tox.Id.ToString()) {
+                return false; // this is not allowed
+            }
             // wait toxcore online
             int maxOnlineWaitTime = 20000; // 20s
             int onlineWaitCount = 0;
@@ -220,6 +224,13 @@ namespace Skynet.Base
         }
 
         public Task<ToxResponse> sendRequest(ToxId toxid, ToxRequest req, out bool status) {
+
+            if (toxid.ToString() == tox.Id.ToString()) {
+                // request was sent to itself
+                status = true;
+                return RequestProxy.sendRequest(this, req);
+            }
+
             string reqContent = JsonConvert.SerializeObject(req);
             int packageNum = reqContent.Length / MAX_MSG_LENGTH + 1;
             bool res = false;

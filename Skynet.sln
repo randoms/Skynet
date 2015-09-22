@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skynet", "Skynet\Skynet.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Skynet.Tests", "SkynetTests\Skynet.Tests.csproj", "{6790718A-0495-4D97-833E-20989112C8D9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpTox", "..\SharpTox-master\SharpTox\SharpTox.csproj", "{B3AB7D92-3D7A-41B2-86D1-D1B256B07663}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpTox", "..\SharpTox\SharpTox\SharpTox.csproj", "{B3AB7D92-3D7A-41B2-86D1-D1B256B07663}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -36,6 +36,8 @@ namespace Skynet.Models
                 uuid = Guid.NewGuid().ToString(),
                 toxid = skynet.tox.Id.ToString()
             };
+            childNodes = new List<NodeId>();
+            brotherNodes = new List<NodeId>();
             Task.Factory.StartNew(async () =>
             {
                 await joinNetByTargetParents(bootStrapParents); // if successed parent will be set, and isConnected will set to true
@@ -43,6 +45,8 @@ namespace Skynet.Models
             nodeChangeLock = new NodeLock { from = null, isLocked = false };
             AllLocalNodes.Add(this);
         }
+
+        public Node(Base.Skynet skynet):this(new List<NodeId>() { }, skynet) {}
 
         /// <summary>
         /// get the quality of the node based on bandwidth, uptime, disk storage size etc

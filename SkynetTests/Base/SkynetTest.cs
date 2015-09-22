@@ -72,5 +72,33 @@ namespace SkynetTests.Base
                 }
             }).GetAwaiter().GetResult();
         }
+
+        [TestMethod]
+        public void TestSendMsgToSelf() {
+            Node Node1 = new Node(mSkynet);
+            Node Node2 = new Node(mSkynet);
+            bool status = false;
+
+            Task.Run(async () => {
+                ToxResponse res = await mSkynet.sendRequest(mSkynet.tox.Id, new ToxRequest
+                {
+                    url = "tox/" + mSkynet.tox.Id.ToString(),
+                    uuid = Guid.NewGuid().ToString(),
+                    method = "get",
+                    content = "",
+                    fromNodeId = Node1.selfNode.uuid,
+                    fromToxId = mSkynet.tox.Id.ToString(),
+                    toNodeId = Node2.selfNode.uuid,
+                    toToxId = mSkynet.tox.Id.ToString(),
+                }, out status);
+                Console.WriteLine("status: " + status);
+                Assert.AreEqual(true, status);
+                if (status) {
+                    NodeResponse nodeRes = JsonConvert.DeserializeObject<NodeResponse>(res.content);
+                    Assert.AreEqual(nodeRes.statusCode, NodeResponseCode.OK);
+                }
+            }).GetAwaiter().GetResult();
+        }
     }
+
 }

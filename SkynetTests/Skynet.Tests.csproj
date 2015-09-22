@@ -63,11 +63,13 @@
   <ItemGroup>
     <Compile Include="Base\Controllers\ToxControllerTest.cs" />
     <Compile Include="Base\Controllers\ParentNodeControllerTest.cs" />
+    <Compile Include="Base\Controllers\ChildNodeControllerTest.cs" />
+    <Compile Include="Base\Controllers\NodeControllerTest.cs" />
     <Compile Include="Base\SkynetTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\SharpTox-master\SharpTox\SharpTox.csproj">
+    <ProjectReference Include="..\..\SharpTox\SharpTox\SharpTox.csproj">
       <Project>{b3ab7d92-3d7a-41b2-86d1-d1b256b07663}</Project>
       <Name>SharpTox</Name>
     </ProjectReference>
