@@ -11,6 +11,7 @@ namespace Skynet.Models
         public NodeResponseCode statusCode;
         public string description;
         public string value;
+        public long time;
     }
 
     public enum NodeResponseCode
@@ -21,6 +22,8 @@ namespace Skynet.Models
         InvalidRequestMethod,
         TargetLocked,
         TargetIsFull,
-        AlreadyExist
+        AlreadyExist,
+        NoPermission,
+        OutOfDate
     }
 }

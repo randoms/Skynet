@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Net.Http;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace SkynetTests.Base.Controllers
 {
@@ -20,7 +21,7 @@ namespace SkynetTests.Base.Controllers
             mSkynet = new Skynet.Base.Skynet();
             Node1 = new Node(mSkynet);
             Node2 = new Node(mSkynet);
-            baseUrl = "http://localhost:" + mSkynet.httpPort + "/";
+            baseUrl = "http://localhost:" + mSkynet.httpPort + "/api/";
         }
 
         [TestMethod]
@@ -72,7 +73,7 @@ namespace SkynetTests.Base.Controllers
                     var response = await client.DeleteAsync(baseUrl + "node/" + Node1.selfNode.uuid);
                     string responseString = await response.Content.ReadAsStringAsync();
                     Assert.AreEqual(currentNodeCount - 1, Node.AllLocalNodes.Count);
-                    //Assert.AreEqual(null, Node.AllLocalNodes.Where());
+                    Assert.AreEqual(null, Node.AllLocalNodes.Where(x => x.selfNode.uuid == Node1.selfNode.uuid).DefaultIfEmpty(null).FirstOrDefault());
                 }
             }).GetAwaiter().GetResult();
         }

@@ -16,6 +16,11 @@ namespace Skynet.Models
         public string fromToxId { get; set; }
         public string toNodeId { get; set; }
         public string toToxId { get; set; }
+        public long time { get; set; }
+
+        public ToxRequest() {
+            time = Utils.Utils.UnixTimeNow();
+        }
 
         public ToxResponse createResponse(string content = "")
         {

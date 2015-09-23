@@ -22,7 +22,7 @@ namespace Skynet.Base.Contollers
             return new NodeResponse {
                 statusCode = NodeResponseCode.OK,
                 description = "success",
-                value = JsonConvert.SerializeObject(nodeList),
+                value = JsonConvert.SerializeObject(nodeList)
             };
         }
 

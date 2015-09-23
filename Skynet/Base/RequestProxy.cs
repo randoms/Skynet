@@ -18,28 +18,6 @@ namespace Skynet.Base
     /// </summary>
     public class RequestProxy
     {
-        // TODO: add all methods support
-        /*public static async Task<ToxResponse> sendRequest(Skynet host, ToxRequest req)
-        {
-            // if req is not send to local node
-            if (host.tox.Id.ToString() != req.toToxId) {
-                // send req to remove tox client
-                bool mResStatus = false;
-                return await host.sendRequest(new ToxId(req.toToxId), req, out mResStatus);
-            }
-            // request was sent to local host
-            using (var client = new HttpClient())
-            {
-                string baseUrl = "http://localhost:" + host.httpPort + "/";
-                client.DefaultRequestHeaders.Add("Uuid", req.uuid);
-                client.DefaultRequestHeaders.Add("From-Node-Id", req.fromNodeId);
-                client.DefaultRequestHeaders.Add("From-Tox-Id", req.fromToxId);
-                client.DefaultRequestHeaders.Add("To-Node-Id", req.toNodeId);
-                client.DefaultRequestHeaders.Add("To-Tox-Id", req.toToxId);
-                string responseString = await client.GetStringAsync(baseUrl + "api/" + req.url);
-                return req.createResponse(responseString);
-            }
-        }*/
 
         public static ToxRequest toNodeRequest(HttpRequestMessage req) {
             return new ToxRequest
@@ -52,6 +30,7 @@ namespace Skynet.Base
                 fromToxId = req.Headers.GetValues("From-Tox-Id").FirstOrDefault(),
                 toNodeId = req.Headers.GetValues("To-Node-Id").FirstOrDefault(),
                 toToxId = req.Headers.GetValues("To-Tox-Id").FirstOrDefault(),
+                time = long.Parse(req.Headers.GetValues("Skynet-Time").FirstOrDefault()),
             };
         }
 
@@ -70,6 +49,7 @@ namespace Skynet.Base
             request.Headers.Add("From-Tox-Id", req.fromToxId);
             request.Headers.Add("To-Node-Id", req.toNodeId);
             request.Headers.Add("To-Tox-Id", req.toToxId);
+            request.Headers.Add("Skynet-Time", req.time + "");
             request.Method = req.method.ToUpper();
             request.ContentType = "application/json";
 

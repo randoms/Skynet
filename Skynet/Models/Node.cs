@@ -27,6 +27,12 @@ namespace Skynet.Models
         public static int MAX_CHILD_NODES_NUM = 10;
         public bool isConnected = false; // is the node is connected to its net
 
+        // modify times
+        public long grandParentsModifiedTime = 0;
+        public long parentModifiedTime = 0;
+        public long childNodesModifiedTime = 0;
+        public long brotherModifiedTime = 0;
+
         public Node(List<NodeId> bootStrapParents, Base.Skynet skynet)
         {
             mSkynet = skynet;
@@ -38,12 +44,12 @@ namespace Skynet.Models
             };
             childNodes = new List<NodeId>();
             brotherNodes = new List<NodeId>();
-            Task.Factory.StartNew(async () =>
-            {
-                await joinNetByTargetParents(bootStrapParents); // if successed parent will be set, and isConnected will set to true
-            });
             nodeChangeLock = new NodeLock { from = null, isLocked = false };
             AllLocalNodes.Add(this);
+            if (bootStrapParents != null && bootStrapParents.Count > 0)
+                Task.Run(async () => {
+                    await joinNetByTargetParents(bootStrapParents);
+                });
         }
 
         public Node(Base.Skynet skynet):this(new List<NodeId>() { }, skynet) {}
@@ -86,7 +92,7 @@ namespace Skynet.Models
         /// <returns>
         /// the target distributed
         /// </returns>
-        public async Task joinNetByTargetParents(List<NodeId> parentsList)
+        public async Task<bool> joinNetByTargetParents(List<NodeId> parentsList)
         {
             List<NodeId> targetNodeList = parentsList;
             List<NodeId> checkedNodesList = new List<NodeId>();
@@ -97,7 +103,7 @@ namespace Skynet.Models
                 NodeId parentNode = targetNodeList[0];
                 ToxRequest addParentReq = new ToxRequest
                 {
-                    url = "node/childNodes",
+                    url = "node/"+ parentNode.uuid +"/childNodes",
                     method = "post",
                     uuid = Guid.NewGuid().ToString(),
                     content = JsonConvert.SerializeObject(selfNode),
@@ -106,40 +112,39 @@ namespace Skynet.Models
                     toNodeId = parentNode.uuid,
                     toToxId = parentNode.toxid,
                 };
-                bool addParentReqRes = false;
                 ToxResponse mRes = await RequestProxy.sendRequest(mSkynet, addParentReq);
                 // send req failed or target is currently locked, ie target is not avaliable right now. remove target node from nodelist
-                if (!addParentReqRes)
+                NodeResponse addParentResponse = JsonConvert.DeserializeObject<NodeResponse>(mRes.content);
+
+                if (addParentResponse.statusCode == NodeResponseCode.TargetLocked
+                    || addParentResponse.statusCode == NodeResponseCode.TargetIsFull)
                 {
                     targetNodeList.Remove(parentNode);
+                    if (!checkedNodesList.Contains<NodeId>(parentNode))
+                        checkedNodesList.Add(parentNode);
+                    // new nodes, not checked yet
+                    List<NodeId> newTargetsList = JsonConvert.DeserializeObject<List<NodeId>>(addParentResponse.value).Where((mnode) =>
+                    {
+                        return !checkedNodesList.Contains<NodeId>(mnode) && !targetNodeList.Contains<NodeId>(mnode);
+                    }).ToList();
+                    targetNodeList = targetNodeList.Concat(newTargetsList).ToList();
                     continue;
                 }
-                NodeResponse addParentResponse = JsonConvert.DeserializeObject<NodeResponse>(mRes.content);
-                switch (addParentResponse.statusCode)
+                else if (addParentResponse.statusCode == NodeResponseCode.OK) {
+                    // set parent and connect status
+                    target = new NodeId
+                    {
+                        toxid = mRes.fromToxId,
+                        uuid = mRes.fromNodeId
+                    };
+                    isConnected = true;
+                    break;
+                }else
                 {
-                    case NodeResponseCode.TargetLocked:
-                        targetNodeList.Remove(parentNode);
-                        if (!checkedNodesList.Contains<NodeId>(parentNode))
-                            checkedNodesList.Add(parentNode);
-                        continue;
-                    case NodeResponseCode.TargetIsFull:
-                        targetNodeList.Remove(parentNode);
-                        if (!checkedNodesList.Contains<NodeId>(parentNode))
-                            checkedNodesList.Add(parentNode);
-                        // new nodes, not checked yet
-                        List<NodeId> newTargetsList = JsonConvert.DeserializeObject<List<NodeId>>(addParentResponse.value).Where((mnode) => {
-                            return !checkedNodesList.Contains<NodeId>(mnode);
-                        }).ToList();
-                        targetNodeList.Concat(newTargetsList);
-                        continue;
-                    case NodeResponseCode.OK:
-                        // set parent and connect status
-                        target = new NodeId {
-                            toxid = mRes.fromToxId,
-                            uuid = mRes.fromNodeId
-                        };
-                        isConnected = true;
-                        break;
+                    // try to connect next target
+                    targetNodeList.Remove(parentNode);
+                    if (!checkedNodesList.Contains<NodeId>(parentNode))
+                        checkedNodesList.Add(parentNode);
                 }
 
             }
@@ -154,6 +159,7 @@ namespace Skynet.Models
                 parent = null;
                 isConnected = false;
             }
+            return isConnected;
         }
 
         public void relatedNodesStatusChanged(NodeId targetNode) {
@@ -169,7 +175,7 @@ namespace Skynet.Models
                     mSkynet.sendRequest(new ToxId(remindingNodes.toxid), new ToxRequest
                     {
                         url = "node/" + remindingNodes.uuid + "/brotherNodes/" + childNodeToRemove.uuid,
-                        method = "delete",
+                        method = "put",
                         uuid = Guid.NewGuid().ToString(),
                         content = "",
                         fromNodeId = selfNode.uuid,
@@ -179,7 +185,7 @@ namespace Skynet.Models
                     }, out status);
                 });
                 // remove nodes from friends
-                
+                // a little diffcult
             }
             // parent node offline
             if(targetNode.uuid == parent.uuid)
@@ -231,6 +237,10 @@ namespace Skynet.Models
                 bandWidth = bandWidth,
                 MAX_CHILD_NODES_NUM = MAX_CHILD_NODES_NUM,
                 isConnected = isConnected,
+                grandParentsModifiedTime = grandParentsModifiedTime,
+                parentModifiedTime = parentModifiedTime,
+                childNodesModifiedTime = childNodesModifiedTime,
+                brotherModifiedTime = brotherModifiedTime
             };
         }
     }
@@ -264,6 +274,11 @@ namespace Skynet.Models
         public int bandWidth { get; set; } // unit KB
         public int MAX_CHILD_NODES_NUM = 10;
         public bool isConnected = false; // is the node is connected to its net
+
+        public long grandParentsModifiedTime { get; set; }
+        public long parentModifiedTime { get; set; }
+        public long childNodesModifiedTime { get; set; }
+        public long brotherModifiedTime { get; set; }
     }
 
     public class NodeLock {
