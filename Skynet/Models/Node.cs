@@ -111,6 +111,7 @@ namespace Skynet.Models
                     fromToxId = selfNode.toxid,
                     toNodeId = parentNode.uuid,
                     toToxId = parentNode.toxid,
+                    time = Utils.Utils.UnixTimeNow(),
                 };
                 ToxResponse mRes = await RequestProxy.sendRequest(mSkynet, addParentReq);
                 // send req failed or target is currently locked, ie target is not avaliable right now. remove target node from nodelist
@@ -152,7 +153,18 @@ namespace Skynet.Models
             if (target != null)
             {
                 isConnected = true;
-                parent = target;
+                // set parents, will boardcast grandparents change to child nodes, and set target grandparents
+                ToxResponse setParentResponse = await RequestProxy.sendRequest(mSkynet, new ToxRequest {
+                    url = "node/" + selfNode.uuid + "/parents",
+                    method = "put",
+                    content = JsonConvert.SerializeObject(target),
+                    fromNodeId = selfNode.uuid,
+                    fromToxId = selfNode.toxid,
+                    toNodeId = selfNode.uuid,
+                    toToxId = selfNode.uuid,
+                    uuid = Guid.NewGuid().ToString(),
+                    time = Utils.Utils.UnixTimeNow(),
+                });
             }
             else
             {
@@ -169,57 +181,32 @@ namespace Skynet.Models
             NodeId childNodeToRemove = childNodes.Where(x => x.uuid == targetNode.uuid).DefaultIfEmpty(null).FirstOrDefault();
             if (childNodeToRemove != null) {
                 childNodes.Remove(targetNode);
-                childNodes.ForEach(remindingNodes => {
-                    bool status = false;
-                    // send request to reminding nodes
-                    mSkynet.sendRequest(new ToxId(remindingNodes.toxid), new ToxRequest
-                    {
-                        url = "node/" + remindingNodes.uuid + "/brotherNodes/" + childNodeToRemove.uuid,
-                        method = "put",
+                Task.Run(async () => {
+                    ToxResponse res = await RequestProxy.sendRequest(mSkynet, new ToxRequest {
                         uuid = Guid.NewGuid().ToString(),
-                        content = "",
+                        url = "node/" + selfNode.uuid + "/childNodes",
+                        method = "put",
+                        content = JsonConvert.SerializeObject(childNodes),
                         fromNodeId = selfNode.uuid,
                         fromToxId = selfNode.toxid,
-                        toNodeId = remindingNodes.toxid,
-                        toToxId = remindingNodes.toxid
-                    }, out status);
+                        toNodeId = selfNode.uuid,
+                        toToxId = selfNode.toxid,
+                        time = childNodesModifiedTime,
+                    });
                 });
-                // remove nodes from friends
-                // a little diffcult
+                return;
             }
             // parent node offline
             if(targetNode.uuid == parent.uuid)
             {
                 Task.Run(async () =>
                 {
-                    await joinNetByTargetParents(brotherNodes);
-                    // send new grand parents to child nodes
-                    childNodes.ForEach(child =>
-                    {
-                        bool status = false;
-                        // send request to reminding nodes
-                        mSkynet.sendRequest(new ToxId(child.toxid), new ToxRequest
-                        {
-                            url = "node/" + child.uuid + "/grandParents",
-                            method = "put",
-                            uuid = Guid.NewGuid().ToString(),
-                            content = JsonConvert.SerializeObject(parent),
-                            fromNodeId = selfNode.uuid,
-                            fromToxId = selfNode.toxid,
-                            toNodeId = child.toxid,
-                            toToxId = child.toxid
-                        }, out status);
-                    });
+                    bool isConnected = await joinNetByTargetParents(new List<NodeId> { grandParents});
+                    // rejoin net might be failed, grandparents may also offline
                 });
             }
-            // brother nodes offline just delete friend record
-            if (brotherNodes.IndexOf(targetNode) != -1) {
-                brotherNodes.Remove(targetNode);
-            }
-            // grandparent node offline just delete friend record
-            ToxErrorFriendDelete mError = ToxErrorFriendDelete.Ok;
-            int targetFriendNum = mSkynet.tox.GetFriendByPublicKey(new ToxId(childNodeToRemove.toxid).PublicKey);
-            mSkynet.tox.DeleteFriend(targetFriendNum, out mError);
+
+            // grand parents and brothers will not be processed, just wait for request from parents
         }
 
         public NodeInfo getInfo() {
@@ -242,6 +229,23 @@ namespace Skynet.Models
                 childNodesModifiedTime = childNodesModifiedTime,
                 brotherModifiedTime = brotherModifiedTime
             };
+        }
+
+        public async Task<NodeResponse> sendRequest(NodeId target, string content, string method,
+            string url, long time = 0) {
+            ToxResponse response = await RequestProxy.sendRequest(mSkynet, new ToxRequest {
+                uuid = Guid.NewGuid().ToString(),
+                url = url,
+                method = method,
+                content = content,
+                fromNodeId = selfNode.uuid,
+                fromToxId = selfNode.toxid,
+                toNodeId = target.uuid,
+                toToxId = target.toxid,
+                time = time
+            });
+            NodeResponse res = JsonConvert.DeserializeObject<NodeResponse>(response.content);
+            return res;
         }
     }
 

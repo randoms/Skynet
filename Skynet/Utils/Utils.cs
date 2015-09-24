@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Skynet.Utils
 {
-    class Utils
+    public class Utils
     {
         public static bool isValidGuid(string guid) {
             Guid mGuid;

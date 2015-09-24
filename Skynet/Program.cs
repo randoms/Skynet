@@ -18,13 +18,9 @@ namespace Skynet
 
         static void Main(string[] args)
         {
-            Base.Skynet mSkynet = new Base.Skynet();
-            while (!mSkynet.tox.IsConnected) {
-                Thread.Sleep(10);
-            }
-            List<NodeId> parents = new List<NodeId>();
-            Node testNode = new Node(parents, mSkynet);
-            Console.ReadKey();
+            Console.WriteLine(long.Parse("0"));
+            Console.WriteLine(long.Parse(null));
+            Console.ReadLine();
         }
     }
 }

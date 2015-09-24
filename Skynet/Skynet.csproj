@@ -112,6 +112,7 @@
   <ItemGroup>
     <Compile Include="Base\Contollers\BrotherNodeController.cs" />
     <Compile Include="Base\Contollers\ChildNodeController.cs" />
+    <Compile Include="Base\Contollers\GrandParentsController.cs" />
     <Compile Include="Base\Contollers\NodeController.cs" />
     <Compile Include="Base\Contollers\ParentNodeController.cs" />
     <Compile Include="Base\Contollers\ToxController.cs" />

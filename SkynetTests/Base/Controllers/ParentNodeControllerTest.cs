@@ -49,13 +49,13 @@ namespace SkynetTests.Base.Controllers
             Task.Run(() => {
 
                 Skynet.Base.Skynet sender = new Skynet.Base.Skynet();
-
                 Node mNode = new Node(new List<NodeId>(), mSkynet);
                 Task.Run(async () => {
                     // create a node
 
                     Node parentNode = new Node(new List<NodeId>(), sender);
 
+                    long timeStamp = Skynet.Utils.Utils.UnixTimeNow();
                     ToxResponse res = await RequestProxy.sendRequest(mSkynet, new ToxRequest
                     {
                         uuid = Guid.NewGuid().ToString(),
@@ -66,10 +66,13 @@ namespace SkynetTests.Base.Controllers
                         fromToxId = sender.tox.Id.ToString(),
                         toNodeId = mNode.selfNode.uuid,
                         toToxId = mSkynet.tox.Id.ToString(),
+                        time = timeStamp,
                     });
                     NodeResponse mRes = JsonConvert.DeserializeObject<NodeResponse>(res.content);
                     Console.WriteLine("value: " + mRes.value);
                     Assert.AreEqual(mRes.statusCode, NodeResponseCode.OK);
+                    Assert.AreEqual(timeStamp, mRes.time);
+                    Assert.AreEqual(timeStamp, mNode.parentModifiedTime);
                 }).GetAwaiter().GetResult();
             });
         }

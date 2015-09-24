@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using SharpTox.Core;
 using Skynet.Models;
 using System;
 using System.Collections.Generic;
@@ -14,7 +15,8 @@ namespace Skynet.Base.Contollers
     {
         [Route("api/node/{nodeId}/parent")]
         [HttpGet]
-        public NodeResponse Get(string nodeId) {
+        public NodeResponse Get(string nodeId)
+        {
             if (!Utils.Utils.isValidGuid(nodeId))
             {
                 return new NodeResponse
@@ -36,14 +38,27 @@ namespace Skynet.Base.Contollers
             {
                 statusCode = NodeResponseCode.OK,
                 description = "get target node info success",
-                value = JsonConvert.SerializeObject(targetNode.parent)
+                value = JsonConvert.SerializeObject(targetNode.parent),
+                time = targetNode.grandParentsModifiedTime,
             };
-            
+
         }
 
         [Route("api/node/{nodeId}/parent")]
         [HttpPut, HttpPatch]
-        public NodeResponse Put(string nodeId, [FromBody] NodeId values) {
+        public NodeResponse Put(string nodeId, [FromBody] NodeId values)
+        {
+
+            IEnumerable<string> requestTime = new List<string>();
+            if (!Request.Headers.TryGetValues("Skynet-Time", out requestTime))
+            {
+                return new NodeResponse
+                {
+                    statusCode = NodeResponseCode.InvalidRequest,
+                    description = "you need to add some http headers"
+                };
+            }
+
             if (!Utils.Utils.isValidGuid(nodeId))
             {
                 return new NodeResponse
@@ -73,14 +88,73 @@ namespace Skynet.Base.Contollers
             }
             else
             {
+                long reqTime = long.Parse(requestTime.DefaultIfEmpty("0").FirstOrDefault());
+                if (reqTime < targetNode.brotherModifiedTime)
+                {
+                    return new NodeResponse
+                    {
+                        statusCode = NodeResponseCode.OutOfDate,
+                        description = "Your data is outofdate",
+                    };
+                }
+                targetNode.parentModifiedTime = reqTime;
                 targetNode.parent = values;
+
+                Task.Run(async () =>
+                {
+                    // get parent node info, set grandparents
+                    Skynet host = Skynet.allInstance.Where(x => x.httpPort == Request.RequestUri.Port).FirstOrDefault();
+                    bool status = false;
+                    ToxResponse getParentInfo = await host.sendRequest(new ToxId(values.toxid), new ToxRequest
+                    {
+                        url = "node/" + values.uuid,
+                        method = "get",
+                        content = "",
+                        fromNodeId = targetNode.selfNode.uuid,
+                        fromToxId = targetNode.selfNode.toxid,
+                        toNodeId = values.uuid,
+                        toToxId = values.toxid,
+                        time = Utils.Utils.UnixTimeNow(),
+                        uuid = Guid.NewGuid().ToString()
+                    }, out status);
+                    NodeResponse getParentInfoRes = JsonConvert.DeserializeObject<NodeResponse>(getParentInfo.content);
+                    NodeInfo parentInfo = JsonConvert.DeserializeObject<NodeInfo>(getParentInfoRes.value);
+                    targetNode.grandParents = parentInfo.parent;
+                    targetNode.grandParentsModifiedTime = parentInfo.parentModifiedTime;
+                    await BoardCastChanges(targetNode);
+                });
+
                 return new NodeResponse
                 {
                     statusCode = NodeResponseCode.OK,
                     description = "set parent success",
-                    value = JsonConvert.SerializeObject(values)
+                    value = JsonConvert.SerializeObject(values),
+                    time = reqTime,
                 };
             }
+        }
+
+        public async Task BoardCastChanges(Node targetNode)
+        {
+            await Task.Run(() =>
+            {
+                targetNode.childNodes.ForEach((nodeId) =>
+                {
+                    bool status = false;
+                    targetNode.mSkynet.sendRequest(new ToxId(nodeId.toxid), new ToxRequest
+                    {
+                        url = "node/" + nodeId.uuid + "/grandParents",
+                        uuid = Guid.NewGuid().ToString(),
+                        content = JsonConvert.SerializeObject(targetNode.parent),
+                        method = "put",
+                        fromNodeId = targetNode.selfNode.uuid,
+                        fromToxId = targetNode.selfNode.toxid,
+                        toNodeId = nodeId.toxid,
+                        toToxId = nodeId.toxid,
+                        time = targetNode.parentModifiedTime,
+                    }, out status);
+                });
+            });
         }
     }
 }

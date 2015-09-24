@@ -66,6 +66,7 @@
     <Compile Include="Base\Controllers\ChildNodeControllerTest.cs" />
     <Compile Include="Base\Controllers\NodeControllerTest.cs" />
     <Compile Include="Base\Controllers\BrotherNodeTest.cs" />
+    <Compile Include="Base\Controllers\GrandParentsControllerTest.cs" />
     <Compile Include="Base\SkynetTest.cs" />
     <Compile Include="Base\NodeTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

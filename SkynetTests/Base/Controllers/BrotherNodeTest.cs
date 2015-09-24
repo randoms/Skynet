@@ -79,8 +79,10 @@ namespace SkynetTests.Base.Controllers
                     client.DefaultRequestHeaders.Add("Uuid", Guid.NewGuid().ToString());
                     client.DefaultRequestHeaders.Add("From-Node-Id", targetNode.selfNode.uuid);
                     client.DefaultRequestHeaders.Add("From-Tox-Id", targetNode.selfNode.toxid);
-                    client.DefaultRequestHeaders.Add("To-Node-Id", brotherNode.selfNode.uuid);
-                    client.DefaultRequestHeaders.Add("To-Tox-Id", brotherNode.selfNode.toxid);
+                    client.DefaultRequestHeaders.Add("To-Node-Id", targetNode.selfNode.uuid);
+                    client.DefaultRequestHeaders.Add("To-Tox-Id", targetNode.selfNode.toxid);
+                    long timeStamp = Skynet.Utils.Utils.UnixTimeNow();
+                    client.DefaultRequestHeaders.Add("Skynet-Time", timeStamp + "");
                     var postResponse = await client.PostAsync(baseUrl + "node/" + targetNode.selfNode.uuid
                         + "/brotherNodes", new FormUrlEncodedContent(data));
                     string responseString = await postResponse.Content.ReadAsStringAsync();
@@ -88,6 +90,8 @@ namespace SkynetTests.Base.Controllers
                     Assert.AreEqual(NodeResponseCode.OK, res.statusCode);
                     List<NodeId> newBro = JsonConvert.DeserializeObject<List<NodeId>>(res.value);
                     Assert.AreEqual(brotherNode.selfNode.uuid, newBro[0].uuid);
+                    Assert.AreEqual(timeStamp,targetNode.brotherModifiedTime);
+                    Assert.AreEqual(timeStamp, res.time);
                 }
             }).GetAwaiter().GetResult();
         }
@@ -108,6 +112,7 @@ namespace SkynetTests.Base.Controllers
                     client.DefaultRequestHeaders.Add("From-Tox-Id", targetNode.selfNode.toxid);
                     client.DefaultRequestHeaders.Add("To-Node-Id", brotherNode.selfNode.uuid);
                     client.DefaultRequestHeaders.Add("To-Tox-Id", brotherNode.selfNode.toxid);
+                    client.DefaultRequestHeaders.Add("Skynet-Time", Skynet.Utils.Utils.UnixTimeNow() + "");
                     var postResponse = await client.PostAsync(baseUrl + "node/" + targetNode.selfNode.uuid
                         + "/brotherNodes", new FormUrlEncodedContent(data));
                     string responseString = await postResponse.Content.ReadAsStringAsync();
@@ -122,7 +127,8 @@ namespace SkynetTests.Base.Controllers
             Node node3 = new Node(mSkynet);
             node3.parent = targetNode.selfNode;
             brotherNode.parent = targetNode.selfNode;
-
+            targetNode.childNodes.Add(node3.selfNode);
+            targetNode.childNodes.Add(brotherNode.selfNode);
             Task.Run(() => {
                 var request = WebRequest.Create(baseUrl + "node/" + brotherNode.selfNode.uuid
                     + "/brotherNodes");
@@ -132,6 +138,8 @@ namespace SkynetTests.Base.Controllers
                 request.Headers.Add("From-Tox-Id", targetNode.selfNode.toxid);
                 request.Headers.Add("To-Node-Id", brotherNode.selfNode.uuid);
                 request.Headers.Add("To-Tox-Id", brotherNode.selfNode.toxid);
+                long timestamp = Skynet.Utils.Utils.UnixTimeNow();
+                request.Headers.Add("Skynet-Time", timestamp + "");
                 request.ContentType = "application/json";
                 using (StreamWriter writer = new StreamWriter(request.GetRequestStream())) {
                     writer.Write(
@@ -143,6 +151,8 @@ namespace SkynetTests.Base.Controllers
                 string resString = new StreamReader(response.GetResponseStream()).ReadToEnd();
                 NodeResponse res = JsonConvert.DeserializeObject<NodeResponse>(resString);
                 Assert.AreEqual(NodeResponseCode.OK, res.statusCode);
+                Assert.AreEqual(timestamp, res.time);
+                Assert.AreEqual(timestamp, brotherNode.brotherModifiedTime);
             }).GetAwaiter().GetResult();
         }
 
@@ -159,6 +169,8 @@ namespace SkynetTests.Base.Controllers
                     client.DefaultRequestHeaders.Add("From-Tox-Id", targetNode.selfNode.toxid);
                     client.DefaultRequestHeaders.Add("To-Node-Id", brotherNode.selfNode.uuid);
                     client.DefaultRequestHeaders.Add("To-Tox-Id", brotherNode.selfNode.toxid);
+                    long timeStamp = Skynet.Utils.Utils.UnixTimeNow();
+                    client.DefaultRequestHeaders.Add("Skynet-Time", timeStamp + "");
                     // test not found
                     var responseNotFound = await client.DeleteAsync(baseUrl + "node/" + brotherNode.selfNode.uuid
                         + "/brotherNodes/" + node3.selfNode.uuid);
@@ -172,6 +184,8 @@ namespace SkynetTests.Base.Controllers
                     string resString = await response.Content.ReadAsStringAsync();
                     NodeResponse res1 = JsonConvert.DeserializeObject<NodeResponse>(resString);
                     Assert.AreEqual(NodeResponseCode.OK, res1.statusCode);
+                    Assert.AreEqual(timeStamp, res1.time);
+                    Assert.AreEqual(timeStamp, brotherNode.brotherModifiedTime);
                 }
             }).GetAwaiter().GetResult();
         }

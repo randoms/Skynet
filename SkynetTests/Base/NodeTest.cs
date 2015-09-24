@@ -4,6 +4,7 @@ using Skynet.Models;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 
 namespace SkynetTests.Base
 {
@@ -36,9 +37,10 @@ namespace SkynetTests.Base
         public void JoinNetTest() {
             node1 = new Node(mSkynet);
             node2 = new Node(mSkynet);
-            node3 = new Node(mSkynet2);
-
+            node3 = new Node(mSkynet);
+            Node node4 = new Node(mSkynet);
             Task.Run(async () => {
+                bool isConnected4 = await node1.joinNetByTargetParents(new List<NodeId> { node4.selfNode });
                 bool isConnected2 = await node2.joinNetByTargetParents(new List<NodeId> { node1.selfNode});
                 bool isConnected3 = await node3.joinNetByTargetParents(new List<NodeId> { node1.selfNode });
                 Assert.AreEqual(true, isConnected2);
@@ -47,6 +49,10 @@ namespace SkynetTests.Base
                 Assert.AreEqual(node3.parent.uuid, node1.selfNode.uuid);
                 Assert.AreEqual(true, node1.childNodes.Any(x => x.uuid == node2.selfNode.uuid));
                 Assert.AreEqual(true, node1.childNodes.Any(x => x.uuid == node3.selfNode.uuid));
+                Assert.AreEqual(node1.parentModifiedTime, node2.grandParentsModifiedTime);
+                Assert.AreEqual(true, isConnected4);
+                Assert.AreEqual(node1.childNodesModifiedTime, node2.brotherModifiedTime);
+                Assert.AreEqual(node1.childNodesModifiedTime, node3.brotherModifiedTime);
             }).GetAwaiter().GetResult();
         }
 
@@ -98,7 +104,25 @@ namespace SkynetTests.Base
 
         [TestMethod]
         public void StateChangeTest() {
+            // test parent node offline
+            node1 = new Node(mSkynet);
+            node2 = new Node(mSkynet2);
 
+            Task.Run(async () => {
+                // add node1 to node2's childnodes
+                NodeResponse res = await node1.sendRequest(node2.selfNode,
+                    JsonConvert.SerializeObject(node1.selfNode), "post",
+                    "node/" + node2.selfNode.uuid + "/childNodes");
+                Assert.AreEqual(NodeResponseCode.OK, res.statusCode);
+                NodeResponse setParentRes = await node1.sendRequest(node1.selfNode,
+                    JsonConvert.SerializeObject(node2.selfNode), "put",
+                    "node/" + node1.selfNode.uuid + "/parent");
+                Assert.AreEqual(NodeResponseCode.OK, setParentRes.statusCode);
+            }).GetAwaiter().GetResult();
+
+            // test grandparent node offline
+            // test child node offline
+            // test brother node offline
         }
     }
 }

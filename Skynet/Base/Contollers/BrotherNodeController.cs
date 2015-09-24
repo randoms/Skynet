@@ -143,7 +143,8 @@ namespace Skynet.Base.Contollers
                 };
             }
 
-            if (long.Parse(requestTime.FirstOrDefault()) < targetNode.brotherModifiedTime) {
+            if (long.Parse(requestTime.DefaultIfEmpty("0").FirstOrDefault()) 
+                < targetNode.brotherModifiedTime) {
                 return new NodeResponse
                 {
                     statusCode = NodeResponseCode.OutOfDate,
@@ -164,7 +165,9 @@ namespace Skynet.Base.Contollers
         public async Task<NodeResponse> Put(string nodeId) {
             List<NodeId> newBrothers = JsonConvert.DeserializeObject<List<NodeId>>(await Request.Content.ReadAsStringAsync());
             IEnumerable<string> headerValues = new List<string>();
-            if (!Request.Headers.TryGetValues("From-Node-Id", out headerValues))
+            IEnumerable<string> requestTime = new List<string>();
+            if (!Request.Headers.TryGetValues("From-Node-Id", out headerValues)
+                || !Request.Headers.TryGetValues("Skynet-Time", out requestTime))
             {
                 // can not found from headers
                 return new NodeResponse
@@ -217,11 +220,22 @@ namespace Skynet.Base.Contollers
                     description = "target is locked",
                 };
             }
+            long reqTime = long.Parse(requestTime.DefaultIfEmpty("0").FirstOrDefault());
+            if (reqTime < targetNode.brotherModifiedTime)
+            {
+                return new NodeResponse
+                {
+                    statusCode = NodeResponseCode.OutOfDate,
+                    description = "Your data is outofdate",
+                };
+            }
+            targetNode.brotherModifiedTime = reqTime;
             targetNode.brotherNodes = newBrothers;
             return new NodeResponse {
                 statusCode = NodeResponseCode.OK,
                 description = "success",
                 value = JsonConvert.SerializeObject(targetNode.brotherNodes),
+                time = reqTime,
             };
         }
 
@@ -229,7 +243,9 @@ namespace Skynet.Base.Contollers
         [HttpDelete]
         public NodeResponse Delete(string nodeId, string brotherNodeId) {
             IEnumerable<string> headerValues = new List<string>();
-            if (!Request.Headers.TryGetValues("From-Node-Id", out headerValues))
+            IEnumerable<string> requestTime = new List<string>();
+            if (!Request.Headers.TryGetValues("From-Node-Id", out headerValues)
+                || !Request.Headers.TryGetValues("Skynet-Time", out requestTime))
             {
                 // can not found from headers
                 return new NodeResponse
@@ -284,11 +300,24 @@ namespace Skynet.Base.Contollers
                     description = "target do not have a request brother node",
                 };
             }
+
+            long reqTime = long.Parse(requestTime.DefaultIfEmpty("0").FirstOrDefault());
+            if (reqTime < targetNode.brotherModifiedTime)
+            {
+                return new NodeResponse
+                {
+                    statusCode = NodeResponseCode.OutOfDate,
+                    description = "Your data is outofdate",
+                };
+            }
+
+            targetNode.brotherModifiedTime = reqTime;
             targetNode.brotherNodes.Remove(brotherNode);
             return new NodeResponse {
                 statusCode = NodeResponseCode.OK,
                 description = "success",
                 value = JsonConvert.SerializeObject(targetNode.brotherNodes),
+                time = reqTime,
             };
         }
     }

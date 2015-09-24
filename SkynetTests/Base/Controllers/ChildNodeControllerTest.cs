@@ -73,6 +73,8 @@ namespace SkynetTests.Base.Controllers
                         { "uuid", childNode.selfNode.uuid},
                         { "toxid", childNode.selfNode.toxid},
                     };
+                    long timeStamp = Skynet.Utils.Utils.UnixTimeNow();
+                    client.DefaultRequestHeaders.Add("Skynet-Time", timeStamp + "");
                     var response = await client.PostAsync(baseUrl + "node/" + testNode.selfNode.uuid
                         + "/childNodes", new FormUrlEncodedContent(values));
                     string responseString = await response.Content.ReadAsStringAsync();
@@ -80,6 +82,8 @@ namespace SkynetTests.Base.Controllers
                     Assert.AreEqual(res.statusCode, NodeResponseCode.OK);
                     NodeId newNode = JsonConvert.DeserializeObject<NodeId>(res.value);
                     Assert.AreEqual(newNode.uuid, childNode.selfNode.uuid);
+                    Assert.AreEqual(timeStamp, res.time);
+                    Assert.AreEqual(timeStamp, testNode.childNodesModifiedTime);
                 }
             }).GetAwaiter().GetResult();
         }
@@ -93,6 +97,8 @@ namespace SkynetTests.Base.Controllers
                         { "uuid", childNode.selfNode.uuid},
                         { "toxid", childNode.selfNode.toxid},
                     };
+                    long timeStamp = Skynet.Utils.Utils.UnixTimeNow();
+                    client.DefaultRequestHeaders.Add("Skynet-Time", timeStamp + "");
                     var response = await client.PostAsync(baseUrl + "node/" + testNode.selfNode.uuid
                         + "/childNodes", new FormUrlEncodedContent(values));
                     string responseString = await response.Content.ReadAsStringAsync();
@@ -102,6 +108,8 @@ namespace SkynetTests.Base.Controllers
                     string deleteResponseString = await deleteResponse.Content.ReadAsStringAsync();
                     NodeResponse res = JsonConvert.DeserializeObject<NodeResponse>(deleteResponseString);
                     Assert.AreEqual(res.statusCode, NodeResponseCode.OK);
+                    Assert.AreEqual(timeStamp, res.time);
+                    Assert.AreEqual(timeStamp, testNode.childNodesModifiedTime);
                 }
             }).GetAwaiter().GetResult();
         }
@@ -112,7 +120,8 @@ namespace SkynetTests.Base.Controllers
                 using (var client = new HttpClient()) {
 
                     testNode.childNodes.Add(childNode.selfNode);
-
+                    long timeStamp = Skynet.Utils.Utils.UnixTimeNow();
+                    client.DefaultRequestHeaders.Add("Skynet-Time", timeStamp + "");
                     var values = new Dictionary<string, string> {
                         { "uuid", childNode.selfNode.uuid },
                         { "toxid", childNode.selfNode.toxid },
@@ -123,6 +132,8 @@ namespace SkynetTests.Base.Controllers
                     string putResponseString = await response.Content.ReadAsStringAsync();
                     NodeResponse res = JsonConvert.DeserializeObject<NodeResponse>(putResponseString);
                     Assert.AreEqual(res.statusCode, NodeResponseCode.OK);
+                    Assert.AreEqual(timeStamp, res.time);
+                    Assert.AreEqual(timeStamp, testNode.childNodesModifiedTime);
                 }
             }).GetAwaiter().GetResult();
         }

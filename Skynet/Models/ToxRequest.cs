@@ -19,7 +19,7 @@ namespace Skynet.Models
         public long time { get; set; }
 
         public ToxRequest() {
-            time = Utils.Utils.UnixTimeNow();
+            time = 0;
         }
 
         public ToxResponse createResponse(string content = "")
