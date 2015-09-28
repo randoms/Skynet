@@ -108,8 +108,10 @@ namespace Skynet.Base
                 // find target friend in all nodes
                 Node.AllLocalNodes.ForEach((mnode) => {
                     List<NodeId> relatedNodes = mnode.childNodes.Concat(mnode.brotherNodes).ToList();
-                    relatedNodes.Add(mnode.parent);
-                    relatedNodes.Add(mnode.grandParents);
+                    if(mnode.parent != null)
+                        relatedNodes.Add(mnode.parent);
+                    if(mnode.grandParents != null)
+                        relatedNodes.Add(mnode.grandParents);
                     relatedNodes.
                     Where(x => x.toxid == tox.Id.ToString())
                     .ToList().ForEach(nodeToRemove => {
@@ -272,6 +274,10 @@ namespace Skynet.Base
                 }
                 return mRes;
             });
+        }
+
+        public void stop() {
+            tox.Stop();
         }
     }
 }

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using Skynet.Base.Contollers;
 using Newtonsoft.Json;
 using Skynet.Base;
+using System.Linq;
 
 namespace SkynetTests.Base.Controllers
 {
@@ -75,6 +76,24 @@ namespace SkynetTests.Base.Controllers
                     Assert.AreEqual(timeStamp, mNode.parentModifiedTime);
                 }).GetAwaiter().GetResult();
             });
+        }
+
+        [TestMethod]
+        public void autoSetGrandParnetsTest() {
+            Skynet.Base.Skynet mSkynet = new Skynet.Base.Skynet();
+            Node node1 = new Node(mSkynet);
+            Node node2 = new Node(mSkynet);
+            Node node3 = new Node(mSkynet);
+            Task.Run(async () => {
+                bool isConnect2 = await node2.joinNetByTargetParents(new List<NodeId> { node1.selfNode });
+                bool isConnect3 = await node3.joinNetByTargetParents(new List<NodeId> { node2.selfNode });
+                Assert.AreEqual(node1.childNodes.FirstOrDefault().uuid, node2.selfNode.uuid);
+                Assert.AreEqual(node2.childNodes.FirstOrDefault().uuid, node3.selfNode.uuid);
+                Assert.AreEqual(node3.parent.uuid, node2.selfNode.uuid);
+                Assert.AreEqual(node2.parent.uuid, node1.selfNode.uuid);
+                Assert.AreEqual(node3.grandParents.uuid, node1.selfNode.uuid);
+            }).GetAwaiter().GetResult();
+            
         }
     }
 }

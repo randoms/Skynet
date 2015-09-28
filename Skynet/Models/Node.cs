@@ -155,7 +155,7 @@ namespace Skynet.Models
                 isConnected = true;
                 // set parents, will boardcast grandparents change to child nodes, and set target grandparents
                 ToxResponse setParentResponse = await RequestProxy.sendRequest(mSkynet, new ToxRequest {
-                    url = "node/" + selfNode.uuid + "/parents",
+                    url = "node/" + selfNode.uuid + "/parent",
                     method = "put",
                     content = JsonConvert.SerializeObject(target),
                     fromNodeId = selfNode.uuid,
@@ -201,6 +201,8 @@ namespace Skynet.Models
             {
                 Task.Run(async () =>
                 {
+                    if (grandParents == null)
+                        return;
                     bool isConnected = await joinNetByTargetParents(new List<NodeId> { grandParents});
                     // rejoin net might be failed, grandparents may also offline
                 });
@@ -244,6 +246,8 @@ namespace Skynet.Models
                 toToxId = target.toxid,
                 time = time
             });
+            if (response == null)
+                return null; // request send failed
             NodeResponse res = JsonConvert.DeserializeObject<NodeResponse>(response.content);
             return res;
         }

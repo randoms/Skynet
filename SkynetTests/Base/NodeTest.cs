@@ -112,12 +112,14 @@ namespace SkynetTests.Base
                 // add node1 to node2's childnodes
                 NodeResponse res = await node1.sendRequest(node2.selfNode,
                     JsonConvert.SerializeObject(node1.selfNode), "post",
-                    "node/" + node2.selfNode.uuid + "/childNodes");
+                    "node/" + node2.selfNode.uuid + "/childNodes", Skynet.Utils.Utils.UnixTimeNow());
                 Assert.AreEqual(NodeResponseCode.OK, res.statusCode);
                 NodeResponse setParentRes = await node1.sendRequest(node1.selfNode,
                     JsonConvert.SerializeObject(node2.selfNode), "put",
-                    "node/" + node1.selfNode.uuid + "/parent");
+                    "node/" + node1.selfNode.uuid + "/parent", Skynet.Utils.Utils.UnixTimeNow());
                 Assert.AreEqual(NodeResponseCode.OK, setParentRes.statusCode);
+                // stop mskynet2
+                mSkynet2.stop();
             }).GetAwaiter().GetResult();
 
             // test grandparent node offline
